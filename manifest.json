@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Grammar Grok",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Check grammar or grammar + stylistics on any page with Grok. Auto-detects English, Czech, Slovak and more.",
   "permissions": ["storage"],
   "host_permissions": ["https://api.x.ai/*"],

@@ -881,88 +881,324 @@
     }, 1800);
   }
 
-  function replaceSelection(text) {
+  /**
+   * Replace only the previously selected span with `replacement`.
+   * Must never delete selection without successfully inserting the new text
+   * (that bug left partial selections wiped with no substitute).
+   */
+  function replaceSelection(replacement) {
+    const text = String(replacement ?? "");
+    const original = selectionState.text || "";
     const editable = selectionState.editable;
 
     if (
       editable instanceof HTMLInputElement ||
       editable instanceof HTMLTextAreaElement
     ) {
-      let start = selectionState.start;
-      let end = selectionState.end;
-      if (typeof start !== "number" || typeof end !== "number") {
-        start = editable.selectionStart;
-        end = editable.selectionEnd;
-      }
-      if (typeof start === "number" && typeof end === "number" && end > start) {
-        // Verify the slice still matches what we checked (avoid wrong replace)
-        const current = editable.value.slice(start, end);
-        if (
-          selectionState.text &&
-          current !== selectionState.text &&
-          !editable.value.includes(selectionState.text)
-        ) {
-          // Fall through to includes-based replace
-        } else if (current === selectionState.text || !selectionState.text) {
-          const before = editable.value.slice(0, start);
-          const after = editable.value.slice(end);
-          editable.focus();
-          editable.value = before + text + after;
-          const caret = start + text.length;
-          editable.setSelectionRange(caret, caret);
-          editable.dispatchEvent(new Event("input", { bubbles: true }));
-          editable.dispatchEvent(new Event("change", { bubbles: true }));
-          return true;
-        }
-      }
-      if (selectionState.text) {
-        const idx = editable.value.indexOf(selectionState.text);
-        if (idx !== -1) {
-          editable.focus();
-          editable.value =
-            editable.value.slice(0, idx) +
-            text +
-            editable.value.slice(idx + selectionState.text.length);
-          editable.dispatchEvent(new Event("input", { bubbles: true }));
-          return true;
-        }
-      }
+      return replaceInTextControl(editable, text, original);
     }
 
-    if (editable?.isContentEditable) {
-      editable.focus();
-      const sel = window.getSelection();
-      try {
-        if (selectionState.range) {
-          sel.removeAllRanges();
-          sel.addRange(selectionState.range);
-        }
-      } catch {
-        /* ignore */
-      }
-      if (document.execCommand("insertText", false, text)) return true;
-      try {
-        if (selectionState.range) {
-          selectionState.range.deleteContents();
-          selectionState.range.insertNode(document.createTextNode(text));
-          return true;
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-
-    try {
-      const sel = window.getSelection();
-      if (selectionState.range) {
-        sel.removeAllRanges();
-        sel.addRange(selectionState.range);
-        if (document.execCommand("insertText", false, text)) return true;
-      }
-    } catch {
-      /* ignore */
+    if (editable?.isContentEditable || selectionState.range) {
+      return replaceInRichEditable(editable, text, original);
     }
 
     return false;
+  }
+
+  function fireTextInputEvents(el, data) {
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    try {
+      el.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          cancelable: true,
+          inputType: "insertReplacementText",
+          data: data,
+        })
+      );
+    } catch {
+      /* InputEvent options not supported */
+    }
+  }
+
+  function replaceInTextControl(el, text, original) {
+    const value = el.value;
+    let start = selectionState.start;
+    let end = selectionState.end;
+
+    // 1) Stored offsets still point at the original slice
+    if (
+      typeof start === "number" &&
+      typeof end === "number" &&
+      end > start &&
+      start >= 0 &&
+      end <= value.length
+    ) {
+      const slice = value.slice(start, end);
+      if (!original || slice === original) {
+        return applyTextControlRange(el, start, end, text);
+      }
+      // Offsets drifted but original still sits at start…
+      if (original && value.slice(start, start + original.length) === original) {
+        return applyTextControlRange(el, start, start + original.length, text);
+      }
+    }
+
+    // 2) Live selection in this field
+    {
+      const liveStart = el.selectionStart;
+      const liveEnd = el.selectionEnd;
+      if (
+        typeof liveStart === "number" &&
+        typeof liveEnd === "number" &&
+        liveEnd > liveStart
+      ) {
+        const slice = value.slice(liveStart, liveEnd);
+        if (!original || slice === original) {
+          return applyTextControlRange(el, liveStart, liveEnd, text);
+        }
+      }
+    }
+
+    // 3) Locate original substring (prefer near stored start)
+    if (original) {
+      let idx = -1;
+      if (typeof start === "number" && start >= 0) {
+        const at = value.indexOf(original, Math.max(0, start - 1));
+        if (at !== -1) idx = at;
+      }
+      if (idx === -1) idx = value.indexOf(original);
+      if (idx !== -1) {
+        return applyTextControlRange(el, idx, idx + original.length, text);
+      }
+    }
+
+    return false;
+  }
+
+  function applyTextControlRange(el, start, end, text) {
+    if (typeof start !== "number" || typeof end !== "number" || end < start) {
+      return false;
+    }
+    if (start < 0 || end > el.value.length) return false;
+
+    const before = el.value.slice(0, start);
+    const after = el.value.slice(end);
+    const expected = before + text + after;
+
+    el.focus();
+
+    // setRangeText correctly replaces a sub-range without wiping the rest
+    try {
+      if (typeof el.setRangeText === "function") {
+        el.setSelectionRange(start, end);
+        el.setRangeText(text, start, end, "end");
+      } else {
+        el.value = expected;
+        const caret = start + text.length;
+        try {
+          el.setSelectionRange(caret, caret);
+        } catch {
+          /* some input types */
+        }
+      }
+    } catch {
+      el.value = expected;
+    }
+
+    // Framework-controlled fields sometimes ignore setRangeText — force value
+    if (el.value !== expected) {
+      el.value = expected;
+      try {
+        el.setSelectionRange(start + text.length, start + text.length);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    fireTextInputEvents(el, text);
+
+    // Verify: partial selection must become `text`, surroundings preserved
+    if (el.value === expected) return true;
+    if (el.value.slice(start, start + text.length) === text) return true;
+    // Last resort force
+    el.value = expected;
+    fireTextInputEvents(el, text);
+    return el.value === expected;
+  }
+
+  function snapshotRichText(root) {
+    if (!root) {
+      return window.getSelection()?.toString() ?? "";
+    }
+    return root.innerText ?? root.textContent ?? "";
+  }
+
+  function restoreRange() {
+    if (!selectionState.range) return null;
+    try {
+      const range = selectionState.range.cloneRange();
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return range;
+    } catch {
+      return null;
+    }
+  }
+
+  function replaceInRichEditable(editable, text, original) {
+    const root =
+      editable ||
+      (selectionState.range?.commonAncestorContainer
+        ? selectionState.range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+          ? selectionState.range.commonAncestorContainer
+          : selectionState.range.commonAncestorContainer.parentElement
+        : null);
+
+    if (root && typeof root.focus === "function") {
+      try {
+        root.focus();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const beforeSnap = snapshotRichText(root);
+    const sel = window.getSelection();
+
+    // --- Method A: insertText over restored selection (atomic replace) ---
+    let range = restoreRange();
+    if (range && sel && !sel.isCollapsed) {
+      try {
+        const ok = document.execCommand("insertText", false, text);
+        const afterSnap = snapshotRichText(root);
+        if (ok && richReplaceLooksGood(beforeSnap, afterSnap, original, text)) {
+          dispatchRichInput(root, text);
+          return true;
+        }
+        // execCommand may return true yet do nothing useful — do not stop if snap unchanged wrong way
+        if (ok && afterSnap !== beforeSnap && (!text || afterSnap.includes(text))) {
+          dispatchRichInput(root, text);
+          return true;
+        }
+      } catch {
+        /* try next method */
+      }
+    }
+
+    // --- Method B: Range API — replace as one unit; restore original if insert fails ---
+    range = restoreRange();
+    if (range) {
+      try {
+        const selectedNow = range.toString();
+        const expectOriginal = original || selectedNow;
+
+        // Build replacement first; only then mutate the range
+        const node = document.createTextNode(text);
+        range.deleteContents();
+        range.insertNode(node);
+
+        if (!node.isConnected) {
+          // Insert never stuck — put original text back at the collapsed caret
+          if (expectOriginal) {
+            try {
+              const back = document.createTextNode(expectOriginal);
+              range.insertNode(back);
+              dispatchRichInput(root, expectOriginal);
+            } catch {
+              /* ignore */
+            }
+          }
+        } else {
+          try {
+            const after = document.createRange();
+            after.setStartAfter(node);
+            after.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(after);
+          } catch {
+            /* ignore caret */
+          }
+          dispatchRichInput(root, text);
+          const afterSnap = snapshotRichText(root);
+          if (richReplaceLooksGood(beforeSnap, afterSnap, expectOriginal, text)) {
+            return true;
+          }
+          // Editor swallowed our node — try restore original if new text missing
+          if (text && expectOriginal && !afterSnap.includes(text)) {
+            try {
+              if (node.isConnected) node.textContent = expectOriginal;
+              else range.insertNode(document.createTextNode(expectOriginal));
+              dispatchRichInput(root, expectOriginal);
+            } catch {
+              /* ignore */
+            }
+          } else if (text && afterSnap.includes(text)) {
+            return true;
+          }
+        }
+      } catch {
+        /* try next */
+      }
+    }
+
+    // --- Method C: string rebuild for simple single-text-node editables ---
+    if (root && original && typeof root.innerText === "string") {
+      try {
+        const full = root.innerText;
+        const idx = full.indexOf(original);
+        if (idx !== -1) {
+          const next = full.slice(0, idx) + text + full.slice(idx + original.length);
+          // Only for plain text-like CE (avoid wiping complex Twitter draft trees)
+          const plain =
+            root.childNodes.length <= 3 &&
+            !root.querySelector?.("div,span[data-text],br");
+          if (plain) {
+            root.textContent = next;
+            dispatchRichInput(root, text);
+            if (snapshotRichText(root).includes(text) || text === "") return true;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    return false;
+  }
+
+  function richReplaceLooksGood(before, after, original, text) {
+    if (before === after && text !== original) {
+      // No DOM change
+      return false;
+    }
+    if (text && !after.includes(text)) {
+      // New text never appeared — treat as failure (avoids "delete only")
+      // Exception: whitespace-normalized editors
+      const norm = (s) => s.replace(/\s+/g, " ").trim();
+      if (!norm(after).includes(norm(text))) return false;
+    }
+    if (original && text !== original && after.includes(original) && !after.includes(text)) {
+      return false;
+    }
+    return true;
+  }
+
+  function dispatchRichInput(root, data) {
+    if (!root) return;
+    try {
+      root.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          cancelable: true,
+          inputType: "insertText",
+          data: data,
+        })
+      );
+    } catch {
+      root.dispatchEvent(new Event("input", { bubbles: true }));
+    }
   }
 })();
