@@ -3,7 +3,7 @@
 **Proofread any webpage with Grok** — select text, pick **Grammar** or **Grammar + Style**, get corrections with automatic language detection (English, Czech, Slovak, and more).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.1.1-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).

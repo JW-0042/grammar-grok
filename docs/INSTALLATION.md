@@ -58,3 +58,5 @@ Do **not** commit `.pem` private keys used for packing.
 | API / HTTP errors | Check key and credits on [console.x.ai](https://console.x.ai); try **Test connection** |
 | Replace does nothing | Some sites block edits; use **Copy** and paste manually |
 | Toolbar stuck visible | Upgrade to ≥ 1.1.0; reload extension (fixed `hidden` vs `display:flex`) |
+| “Extension context invalidated” (often on X/Twitter reply) | Reload the extension **then refresh the tab** (F5). Old content scripts die after extension reload while the SPA tab stays open. v1.1.1 retries messaging and offers a Refresh button. |
+| X/Twitter compose modal | Use ≥ 1.1.1 (`all_frames` + better contenteditable detection). After any extension update, refresh x.com once. |

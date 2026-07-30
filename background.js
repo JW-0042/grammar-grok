@@ -81,6 +81,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
+  // Lightweight wake-up for MV3 service worker (content scripts call before checks)
+  if (message.type === "PING") {
+    sendResponse({ ok: true, pong: true });
+    return false;
+  }
+
   if (message.type === "CHECK_TEXT") {
     handleCheck(message)
       .then(sendResponse)

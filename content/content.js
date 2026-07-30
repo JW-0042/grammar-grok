@@ -14,6 +14,7 @@
   const Z = 2147483646;
   const SYNC_MS = 48;
   const MAX_ISSUES_UI = 40;
+  const MSG_RETRIES = 4;
 
   const CSS = `
     :host, * { box-sizing: border-box; }
@@ -313,6 +314,23 @@
     );
   }
 
+  function findEditable(node) {
+    if (!node) return null;
+    let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    if (!(el instanceof Element)) return null;
+    // contenteditable (X/Twitter compose, many editors) + role=textbox
+    const hit = el.closest?.(
+      '[contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"], [role="textbox"]'
+    );
+    if (hit instanceof HTMLElement) {
+      if (hit.isContentEditable || hit.getAttribute("role") === "textbox") {
+        return hit;
+      }
+    }
+    if (el instanceof HTMLElement && el.isContentEditable) return el;
+    return null;
+  }
+
   function captureSelection() {
     const active = document.activeElement;
 
@@ -340,15 +358,97 @@
       range = null;
     }
 
-    let editable = null;
-    let node = sel.anchorNode;
-    if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
-    if (node instanceof Element) {
-      const el = node.closest('[contenteditable="true"], [contenteditable=""]');
-      if (el instanceof HTMLElement) editable = el;
-    }
+    // Prefer editable under selection; fall back to focused contenteditable (X compose)
+    let editable =
+      findEditable(sel.anchorNode) ||
+      findEditable(sel.focusNode) ||
+      (active instanceof HTMLElement ? findEditable(active) : null) ||
+      (active instanceof HTMLElement && active.isContentEditable ? active : null);
 
     return { text, range, editable, start: null, end: null };
+  }
+
+  /** True while this content script is still tied to a live extension instance. */
+  function isRuntimeAlive() {
+    try {
+      return Boolean(chrome.runtime && chrome.runtime.id);
+    } catch {
+      return false;
+    }
+  }
+
+  function isContextInvalidError(err) {
+    const msg = String(err?.message || err || "");
+    return (
+      err?.code === "CONTEXT_INVALIDATED" ||
+      /extension context invalidated/i.test(msg) ||
+      /context invalidated/i.test(msg)
+    );
+  }
+
+  function isNoReceiverError(err) {
+    const msg = String(err?.message || err || "");
+    return /receiving end does not exist|could not establish connection/i.test(msg);
+  }
+
+  function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  /**
+   * Reliable messaging for MV3: wake SW with retries; surface invalidated context clearly.
+   * Common after extension reload while X/Twitter tab stayed open, or SW cold start.
+   */
+  async function sendToBackground(message) {
+    if (!isRuntimeAlive()) {
+      const e = new Error(
+        "Extension was reloaded or updated. Refresh this page (F5) and try again."
+      );
+      e.code = "CONTEXT_INVALIDATED";
+      throw e;
+    }
+
+    let lastErr = null;
+    for (let attempt = 0; attempt < MSG_RETRIES; attempt++) {
+      if (!isRuntimeAlive()) {
+        const e = new Error(
+          "Extension was reloaded or updated. Refresh this page (F5) and try again."
+        );
+        e.code = "CONTEXT_INVALIDATED";
+        throw e;
+      }
+      try {
+        const res = await chrome.runtime.sendMessage(message);
+        // Undefined can mean SW did not respond yet
+        if (res === undefined && attempt < MSG_RETRIES - 1) {
+          await sleep(80 * (attempt + 1));
+          continue;
+        }
+        return res;
+      } catch (err) {
+        lastErr = err;
+        if (isContextInvalidError(err)) {
+          const e = new Error(
+            "Extension was reloaded or updated. Refresh this page (F5) and try again."
+          );
+          e.code = "CONTEXT_INVALIDATED";
+          throw e;
+        }
+        if (isNoReceiverError(err) && attempt < MSG_RETRIES - 1) {
+          await sleep(100 * (attempt + 1));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastErr || new Error("No response from extension background.");
+  }
+
+  function pingBackground() {
+    if (!isRuntimeAlive()) return;
+    chrome.runtime.sendMessage({ type: "PING" }).catch(() => {
+      /* SW may be sleeping; CHECK_TEXT will retry */
+    });
   }
 
   function hideToolbar() {
@@ -380,6 +480,10 @@
 
   function showToolbar() {
     if (loading) return;
+    if (!isRuntimeAlive()) {
+      hideToolbar();
+      return;
+    }
     const cap = captureSelection();
     if (!cap) {
       hideToolbar();
@@ -388,6 +492,8 @@
     selectionState = cap;
     mountHost();
     revealToolbar();
+    // Wake MV3 service worker early so the check is less likely to race a cold start
+    pingBackground();
   }
 
   function syncToolbarToSelection() {
@@ -513,7 +619,15 @@
     showLoadingPanel(mode);
 
     try {
-      const res = await chrome.runtime.sendMessage({
+      // Warm-up then check (helps after idle tabs / X SPA compose modals)
+      try {
+        await sendToBackground({ type: "PING" });
+      } catch (err) {
+        if (isContextInvalidError(err)) throw err;
+        // ignore soft ping failures; CHECK_TEXT still retries
+      }
+
+      const res = await sendToBackground({
         type: "CHECK_TEXT",
         mode,
         text,
@@ -522,9 +636,11 @@
       if (seq !== checkSeq) return;
 
       if (!res || typeof res !== "object") {
-        showErrorPanel("No response from extension.");
+        showErrorPanel("No response from extension. Try again, or refresh the page.");
       } else if (!res.ok) {
-        showErrorPanel(String(res.error || "Unknown error."));
+        showErrorPanel(String(res.error || "Unknown error."), {
+          allowReload: /api key|invalid/i.test(String(res.error || "")),
+        });
       } else if (!res.data || typeof res.data !== "object") {
         showErrorPanel("Invalid response data.");
       } else {
@@ -532,7 +648,16 @@
       }
     } catch (err) {
       if (seq !== checkSeq) return;
-      showErrorPanel(err?.message || String(err));
+      if (isContextInvalidError(err)) {
+        showErrorPanel(
+          "Extension connection lost (often after reloading the extension, or a long-lived X/Twitter tab). Refresh this page, then select your text again.",
+          { allowReload: true }
+        );
+      } else {
+        showErrorPanel(err?.message || String(err), {
+          allowReload: isNoReceiverError(err),
+        });
+      }
     } finally {
       if (seq === checkSeq) {
         loading = false;
@@ -575,7 +700,7 @@
     panel.append(head, body);
   }
 
-  function showErrorPanel(message) {
+  function showErrorPanel(message, { allowReload = false } = {}) {
     mountHost();
     clearPanel();
     revealPanel();
@@ -585,6 +710,12 @@
     const body = el("div", "gg-body");
     body.append(el("p", "gg-error", String(message || "Error")));
     const foot = el("div", "gg-footer");
+    if (allowReload) {
+      const reload = el("button", "gg-action gg-primary", "Refresh page");
+      reload.type = "button";
+      reload.dataset.action = "reload";
+      foot.append(reload);
+    }
     const close = el("button", "gg-action", "Close");
     close.type = "button";
     close.dataset.action = "close";
@@ -688,6 +819,15 @@
 
     if (action === "close") {
       hidePanel();
+      return;
+    }
+
+    if (action === "reload") {
+      try {
+        window.location.reload();
+      } catch {
+        showToast("Please refresh the page manually (F5)", true);
+      }
       return;
     }
 
