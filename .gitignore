@@ -1,0 +1,35 @@
+# Secrets & local env (never commit)
+.env
+.env.*
+*.pem
+*.key
+secrets/
+credentials/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
+
+# Logs & caches
+*.log
+npm-debug.log*
+node_modules/
+.cache/
+dist/
+build/
+.turbo/
+
+# Chrome packing artifacts
+*.crx
+*.pem
+*.zip
+web-ext-artifacts/
+
+# Local notes
+TODO.local.md
+notes.local.md

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Grammar Grok</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo" aria-hidden="true">✓</div>
+      <div>
+        <h1>Grammar Grok</h1>
+        <p class="tagline">Proofread with Grok on any page</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <label for="apiKey">xAI API key</label>
+      <div class="key-row">
+        <input
+          id="apiKey"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="xai-…"
+        />
+        <button type="button" id="toggleKey" class="ghost" title="Show / hide">
+          Show
+        </button>
+      </div>
+      <p class="hint">
+        Create a key at
+        <a href="https://console.x.ai" target="_blank" rel="noopener"
+          >console.x.ai</a
+        >.
+        Stored only on this device. SuperGrok chat login cannot be used here.
+      </p>
+    </section>
+
+    <section class="card">
+      <label for="model">Model</label>
+      <select id="model">
+        <option value="grok-4.5">grok-4.5 (recommended)</option>
+        <option value="grok-4.3">grok-4.3</option>
+        <option value="grok-4.20-0309-non-reasoning">
+          grok-4.20 non-reasoning
+        </option>
+        <option value="grok-4.20-0309-reasoning">grok-4.20 reasoning</option>
+      </select>
+    </section>
+
+    <div class="actions">
+      <button type="button" id="save" class="primary">Save</button>
+      <button type="button" id="test" class="secondary">Test connection</button>
+    </div>
+    <p id="status" class="status" role="status"></p>
+
+    <section class="help">
+      <h2>How to use</h2>
+      <ol>
+        <li>Select text on any website</li>
+        <li>
+          Choose <strong>Grammar</strong> or <strong>Grammar + Style</strong>
+        </li>
+        <li>Copy or replace the corrected text</li>
+      </ol>
+      <p class="hint">
+        Language is detected automatically (EN, CS, SK, …).
+      </p>
+    </section>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
