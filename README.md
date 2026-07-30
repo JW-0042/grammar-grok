@@ -81,7 +81,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.1.0)
+├── manifest.json          # Chrome MV3 manifest (v1.1.1)
 ├── background.js          # Service worker: xAI API, validation, prompts
 ├── content/
 │   └── content.js         # Selection toolbar + result panel (Shadow DOM)
