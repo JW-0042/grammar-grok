@@ -1,0 +1,67 @@
+# Changelog
+
+All notable changes to **Grammar Grok** are documented here.  
+The version in [`manifest.json`](manifest.json) is the source of truth.
+
+Format inspired by [Keep a Changelog](https://keepachangelog.com/).
+
+## [1.1.2] — 2026-07-30
+
+### Fixed
+
+- **Partial selection Replace** no longer deletes the selected span without inserting the correction. Unselected text in the same field is preserved.
+- Inputs/textareas use `setRangeText` (with value rebuild + event firing) for reliable partial replaces.
+- Contenteditable replace prefers atomic `insertText`, verifies the result, and attempts to restore the original text if insert fails.
+
+### Docs
+
+- Documentation aligned to **1.1.2** (this release).
+
+## [1.1.1] — 2026-07-30
+
+### Fixed
+
+- **“Extension context invalidated”** on long-lived SPA tabs (especially **X/Twitter** reply compose) after extension reload or cold service worker.
+- Messaging retries with service-worker wake-up (`PING`) before checks.
+- Clear error UI with **Refresh page** when the extension connection is dead.
+
+### Changed
+
+- Content scripts run in **`all_frames`** (nested composers / iframes).
+- Better detection of `contenteditable` and `role="textbox"` (X compose).
+- `match_about_blank` / `match_origin_as_fallback` for edge-frame cases.
+
+## [1.1.0] — 2026-07-30
+
+### Security & reliability
+
+- Message sender checks (`chrome.runtime.id`).
+- Model allowlist; API key shape checks; error scrubbing.
+- Safer JSON parse (no free-form model prose as full replace).
+- Field length clamps; fetch timeout / abort of overlapping checks.
+- Result UI built with DOM text nodes (no untrusted `innerHTML` of model output).
+- Content scripts limited to `http` / `https` (not `file://` / Chrome internals).
+
+### UI
+
+- Mode toolbar **fixed at top center** of the viewport (does not cover selection).
+- Toolbar hides when selection is cleared (fixed `hidden` vs `display:flex` override).
+
+### Docs / open source
+
+- MIT license, full docs, CONTRIBUTING, SECURITY, issue templates.
+- Public repository: https://github.com/JW-0042/grammar-grok
+
+## [1.0.0] — 2026-07-30
+
+### Added
+
+- Initial Chrome MV3 extension: Grammar / Grammar + Style via xAI Chat Completions.
+- Popup for API key and model.
+- Selection toolbar, result panel, Copy / Replace.
+- Language auto-detection via Grok prompts.
+
+[1.1.2]: https://github.com/JW-0042/grammar-grok/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/JW-0042/grammar-grok/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/JW-0042/grammar-grok/releases/tag/v1.1.0
+[1.0.0]: https://github.com/JW-0042/grammar-grok/releases/tag/v1.0.0

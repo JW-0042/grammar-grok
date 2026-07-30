@@ -2,6 +2,8 @@
 
 Thanks for helping improve Grammar Grok. Contributions of all kinds are welcome: bug fixes, features, docs, translations, and UX polish.
 
+**Current version: 1.1.2** — see [CHANGELOG.md](CHANGELOG.md).
+
 ## License & attribution
 
 By contributing, you agree that your contributions are licensed under the **MIT License** (see [LICENSE](LICENSE)).
@@ -13,7 +15,7 @@ If you use or redistribute this project (or a substantial portion of it), you **
 1. Fork the repository and clone your fork.  
 2. Open Chrome → `chrome://extensions` → enable **Developer mode**.  
 3. **Load unpacked** → select the project root (folder that contains `manifest.json`).  
-4. After code changes, click **Reload** on the extension card, then hard-refresh open tabs (`Ctrl+Shift+R` / `Cmd+Shift+R`).
+4. After code changes, click **Reload** on the extension card, then **hard-refresh** open tabs (`F5` / `Ctrl+Shift+R`). This is required so content scripts are not left with an invalidated extension context.
 
 You need your own free/paid **xAI API key** from [console.x.ai](https://console.x.ai) for live tests. **Never commit your key.**
 
@@ -21,21 +23,23 @@ You need your own free/paid **xAI API key** from [console.x.ai](https://console.
 
 | Path | Role |
 |------|------|
-| `manifest.json` | Chrome MV3 manifest |
-| `background.js` | Service worker: settings, xAI API, validation |
-| `content/content.js` | Selection UI (toolbar + result panel) |
+| `manifest.json` | Chrome MV3 manifest (version source of truth) |
+| `background.js` | Service worker: settings, xAI API, validation, `PING` |
+| `content/content.js` | Selection UI, messaging retries, replace logic |
 | `popup/` | Settings popup (API key, model) |
 | `icons/` | Extension icons |
-| `docs/` | Extra documentation |
+| `docs/` | Installation, usage, architecture, development |
+| `CHANGELOG.md` | Release history |
 
 ## Coding guidelines
 
 - Keep the API key **only** in the background worker / `chrome.storage.local`.  
 - Prefer DOM APIs + `textContent` over `innerHTML` for untrusted model output.  
 - Validate messages and clamp string lengths for API responses.  
+- Replace must preserve unselected text in the same field (see **1.1.2** behavior).  
 - Match existing style: small focused files, clear comments where non-obvious.  
 - Do not add analytics, remote code, or broad host permissions without discussion.  
-- Bump `version` in `manifest.json` for user-visible releases (semver).
+- Bump `version` in `manifest.json` and update **CHANGELOG + docs** for user-visible releases (semver).
 
 ## Pull requests
 

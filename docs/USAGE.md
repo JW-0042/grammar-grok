@@ -1,22 +1,25 @@
 # Usage guide
 
+**Current version: 1.1.2**
+
 ## Everyday flow
 
 1. Open any normal webpage (`https://…` or `http://…`).  
 2. **Select** the text you want to check (at least 3 non-space characters).  
+   You may select the **whole field** or only **part** of a sentence.  
 3. A compact bar appears **fixed at the top center** of the window:
    - **Grammar** — fix mistakes only; keep your voice  
    - **Grammar + Style** — also improve clarity and flow  
 4. Wait for the result panel (right side).  
 5. Read the language badge, summary, corrected text, and issue list.  
-6. **Copy** the result, or **Replace** when the selection is in an input, textarea, or contenteditable field.
+6. **Copy** the result, or **Replace** when the selection is in an editable field.
 
 ### Tips
 
-- Scroll the page freely — the mode bar stays at the top of the **viewport**.  
+- Scroll freely — the mode bar stays at the top of the **viewport** and does not cover your selection.  
 - Clear the selection or click away → the mode bar **hides**.  
 - Press **Escape** to close the toolbar and result panel.  
-- Works well for English, Czech, Slovak, and many other languages (auto-detected).
+- Languages such as English, Czech, Slovak (and many others) are **auto-detected**.
 
 ## Choosing a mode
 
@@ -25,6 +28,32 @@
 | Grammar | You want correctness only (spelling, agreement, punctuation, diacritics) |
 | Grammar + Style | You also want smoother, clearer wording without changing meaning |
 
+## Copy vs Replace
+
+| Action | Behavior |
+|--------|----------|
+| **Copy** | Puts the full corrected text on the clipboard |
+| **Replace** | Swaps **only the text you selected** with the correction. Text before/after the selection in the same box stays put (**1.1.2+**) |
+
+**Replace works best in:**
+
+- `<input>` and `<textarea>`  
+- Many `contenteditable` areas (`role="textbox"`, etc.)
+
+**Replace may fail on:**
+
+- Heavily scripted editors (some social compose boxes, collaborative docs)  
+- Read-only page text (not an editor)
+
+If Replace fails, the extension may copy the correction instead, or show an error — paste manually.
+
+### Partial selection example
+
+Field content: `Hello wrold, how are you?`  
+You select only `wrold` → check → Replace →  
+Result: `Hello world, how are you?`  
+(The rest of the sentence is unchanged.)
+
 ## Settings (popup)
 
 Click the extension icon:
@@ -32,21 +61,27 @@ Click the extension icon:
 | Setting | Description |
 |---------|-------------|
 | xAI API key | From [console.x.ai](https://console.x.ai). Stored only on this device. |
-| Model | Default `grok-4.5`. You can pick other allowlisted Grok models. |
+| Model | Default `grok-4.5`. Other allowlisted Grok models available. |
 | Test connection | Small request to verify key + model. |
 
 ## Limits
 
-- Max selection length: **8000** characters (keeps cost and latency reasonable).  
-- Very large pages or special editors (e.g. some collaborative docs) may not support **Replace**; use **Copy**.
+- Max selection length: **8000** characters (cost and latency).  
+- Checks only run when you click **Grammar** or **Grammar + Style** (nothing is sent while only selecting).
+
+## X / Twitter and other SPAs
+
+1. After installing or reloading the extension, **refresh the tab once**.  
+2. Open Reply / compose, select text, use the top toolbar.  
+3. If you see *Extension context invalidated*, click **Refresh page** in the error panel or press **F5**.
 
 ## Privacy in practice
 
 - Nothing is sent until you press **Grammar** or **Grammar + Style**.  
-- Only the selected text (and the system prompt for that mode) go to xAI.  
-- This project does not run analytics or phone home to the authors.
+- Only the selected text (plus the mode system prompt) goes to xAI.  
+- No analytics; the project does not phone home to the authors.
 
-## Keyboard / accessibility notes
+## Keyboard / accessibility
 
 - Toolbar and dialog use basic ARIA roles/labels.  
 - Escape closes UI.  

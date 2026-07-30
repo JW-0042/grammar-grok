@@ -1,11 +1,13 @@
 # Installation
 
+**Current version: 1.1.2** (see [`manifest.json`](../manifest.json) and [CHANGELOG.md](../CHANGELOG.md)).
+
 ## Requirements
 
-- Google Chrome or another Chromium browser that supports Manifest V3 extensions  
+- Google Chrome or another Chromium browser that supports **Manifest V3** extensions  
 - An **xAI API key** from [console.x.ai](https://console.x.ai)  
   - API usage is billed by xAI  
-  - A SuperGrok / grok.com chat subscription is **not** enough by itself (no third-party OAuth)
+  - A SuperGrok / grok.com chat subscription is **not** enough by itself (no third-party OAuth for consumer chat)
 
 ## Install from GitHub (unpacked)
 
@@ -26,18 +28,26 @@
 
 4. Click **Load unpacked** and select the project folder that contains `manifest.json`.
 
-5. Pin **Grammar Grok** to the toolbar (puzzle icon → pin).
+5. Confirm the card shows **Grammar Grok** version **1.1.2**.
 
-6. Click the extension icon → paste your API key → **Save**.  
+6. Pin **Grammar Grok** to the toolbar (puzzle icon → pin).
+
+7. Click the extension icon → paste your API key → **Save**.  
    Optionally click **Test connection**.
 
-## Update
+## Update to the latest version
 
 ```bash
+cd grammar-grok
 git pull
 ```
 
-Then on `chrome://extensions` click **Reload** for Grammar Grok, and hard-refresh any open tabs.
+Then:
+
+1. `chrome://extensions` → **Reload** on Grammar Grok  
+2. **Hard-refresh every open tab** you care about (`F5` or `Ctrl+Shift+R`)  
+
+After any extension reload, long-lived SPAs (X/Twitter, Gmail, etc.) **must** be refreshed once so the content script reconnects. Otherwise you may see *Extension context invalidated*.
 
 ## Uninstall
 
@@ -47,16 +57,21 @@ This deletes extension storage on that profile (including the saved API key).
 ## Optional: pack for yourself
 
 Chrome can **Pack extension** for a private `.crx`. That is optional and not required for development.  
-Do **not** commit `.pem` private keys used for packing.
+Do **not** commit `.pem` private keys used for packing (see `.gitignore`).
 
 ## Troubleshooting
 
 | Problem | What to try |
 |---------|-------------|
-| Toolbar never appears | Select ≥ 3 characters; reload extension + hard-refresh page; ensure page is `http`/`https` (not PDF-only or `chrome://`) |
-| “No API key set” | Open popup, paste key, Save |
+| Toolbar never appears | Select ≥ 3 characters; reload extension + hard-refresh page; page must be `http`/`https` (not PDF-only or `chrome://`) |
+| “No API key set” | Open popup, paste key, **Save** |
 | API / HTTP errors | Check key and credits on [console.x.ai](https://console.x.ai); try **Test connection** |
-| Replace does nothing | Some sites block edits; use **Copy** and paste manually |
-| Toolbar stuck visible | Upgrade to ≥ 1.1.0; reload extension (fixed `hidden` vs `display:flex`) |
-| “Extension context invalidated” (often on X/Twitter reply) | Reload the extension **then refresh the tab** (F5). Old content scripts die after extension reload while the SPA tab stays open. v1.1.1 retries messaging and offers a Refresh button. |
-| X/Twitter compose modal | Use ≥ 1.1.1 (`all_frames` + better contenteditable detection). After any extension update, refresh x.com once. |
+| Replace does nothing | Some sites block scripted edits; use **Copy** and paste. Prefer ≥ **1.1.2** for partial selections |
+| Partial Replace deleted selection, left no correction | Upgrade to **≥ 1.1.2**, reload extension, refresh the page |
+| Toolbar stuck always visible | Use **≥ 1.1.0** (fixed `hidden` vs `display:flex`); reload + refresh |
+| “Extension context invalidated” (X/Twitter reply, etc.) | Reload extension **then F5** the tab. **≥ 1.1.1** retries messaging and offers **Refresh page** |
+| X/Twitter compose modal | Use **≥ 1.1.1** (`all_frames` + contenteditable / `role=textbox`). After updates, refresh x.com once |
+| Connection lost after updating extension | Always refresh open tabs after Reload on `chrome://extensions` |
+
+More usage detail: [USAGE.md](USAGE.md).  
+Release history: [CHANGELOG.md](../CHANGELOG.md).

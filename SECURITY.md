@@ -1,5 +1,7 @@
 # Security Policy
 
+**Project version:** documented releases through **1.1.2** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
+
 ## Reporting a vulnerability
 
 If you discover a security issue in **Grammar Grok**, please **do not** open a public GitHub issue.
@@ -42,7 +44,10 @@ We will try to respond within a reasonable time and coordinate a fix before publ
 - Model names are allowlisted  
 - Message senders are checked against `chrome.runtime.id`  
 - Response fields are length-clamped before UI render  
-- Result UI uses DOM text nodes (no untrusted HTML injection of model output)
+- Result UI uses DOM text nodes (no untrusted HTML injection of model output)  
+- Content scripts only on `http`/`https` (not `file://` or Chrome internal pages)  
+- Fetch timeouts, abort of overlapping checks, light client rate spacing  
+- Errors scrubbed of key-like patterns (`xai-…`, `Bearer …`)
 
 ## Scope
 

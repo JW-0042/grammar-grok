@@ -1,15 +1,18 @@
 # Architecture
 
+**Current version: 1.1.2**
+
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
 ```
 ┌─────────────────────┐     chrome.runtime      ┌──────────────────────┐
 │  Content script     │ ────── sendMessage ────►│  Background worker   │
 │  content/content.js │ ◄──── response ─────────│  background.js       │
-│                     │                         │                      │
-│  • text selection   │                         │  • read API key      │
-│  • toolbar / panel  │                         │  • call xAI API      │
-│  • copy / replace   │                         │  • parse JSON        │
+│  (all frames)       │     PING + CHECK_TEXT   │                      │
+│                     │                         │  • read API key      │
+│  • text selection   │                         │  • call xAI API      │
+│  • toolbar / panel  │                         │  • parse JSON        │
+│  • copy / replace   │                         │  • allowlists        │
 └─────────────────────┘                         └──────────┬───────────┘
                                                            │ HTTPS
                                                            ▼
@@ -36,13 +39,22 @@ The content script **never** receives or stores the API key. Pages you visit can
 
 ## Data flow (one check)
 
-1. User selects text on an `http(s)` page.  
+1. User selects text on an `http(s)` page (top frame or nested frame).  
 2. Content script shows a **fixed top toolbar**: Grammar | Grammar + Style.  
-3. On click, content script sends `{ type: "CHECK_TEXT", mode, text }` to the background.  
-4. Background validates sender, mode, text length, API key, and model allowlist.  
-5. Background `POST`s to `https://api.x.ai/v1/chat/completions` with a mode-specific system prompt.  
-6. Model returns JSON (language, corrected text, issues). Background clamps fields.  
-7. Content script renders the result panel (DOM nodes only) and offers Copy / Replace.
+3. Content script may **PING** the service worker to wake it (MV3).  
+4. On mode click, content script sends `{ type: "CHECK_TEXT", mode, text }` with retries if the worker is cold.  
+5. Background validates sender, mode, text length, API key, and model allowlist.  
+6. Background `POST`s to `https://api.x.ai/v1/chat/completions` with a mode-specific system prompt.  
+7. Model returns JSON (language, corrected text, issues). Background clamps fields.  
+8. Content script renders the result panel (DOM nodes only) and offers Copy / Replace.
+
+### Messaging resilience (1.1.1+)
+
+| Situation | Behavior |
+|-----------|----------|
+| Service worker asleep | `PING` + retries on `CHECK_TEXT` |
+| Extension reloaded while tab open | Detect *context invalidated*; show **Refresh page** |
+| No receiver briefly | Retry with short backoff |
 
 ## Modes
 
@@ -52,6 +64,16 @@ The content script **never** receives or stores the API key. Pages you visit can
 | `style` | Grammar + clarity, flow, word choice (same meaning) |
 
 Language is **auto-detected** by the model (English, Czech, Slovak, and others).
+
+## Replace strategy (1.1.2+)
+
+| Target | Strategy |
+|--------|----------|
+| `input` / `textarea` | `setRangeText` or `before + corrected + after` using stored offsets; fire `input`/`change` |
+| `contenteditable` | Prefer `document.execCommand("insertText")` over restored `Range`; fallback Range API with **verification**; restore original if insert fails |
+| Failure | Return false → UI may copy instead of claiming a bad replace |
+
+**Invariant:** never delete the selected range unless the correction is successfully inserted (or original is restored).
 
 ## Permissions
 
@@ -63,7 +85,16 @@ Language is **auto-detected** by the model (English, Czech, Slovak, and others).
 - `storage` — save API key and model preference locally  
 - `host_permissions` — only xAI API (not arbitrary sites)
 
-Content scripts match `http://*/*` and `https://*/*`, excluding the Chrome Web Store.
+### Content scripts
+
+```json
+"matches": ["http://*/*", "https://*/*"],
+"all_frames": true,
+"match_about_blank": true,
+"match_origin_as_fallback": true
+```
+
+Excludes Chrome Web Store URLs. Runs in nested frames so reply composers in iframes still work.
 
 ## Security controls (summary)
 
@@ -73,6 +104,7 @@ Content scripts match `http://*/*` and `https://*/*`, excluding the Chrome Web S
 - Light client-side rate spacing  
 - Error messages scrubbed of key-like patterns  
 - No remote scripts; MV3 CSP on extension pages  
+- UI uses `textContent` / DOM APIs for model output  
 
 See also [SECURITY.md](../SECURITY.md).
 
@@ -80,8 +112,15 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts |
-| `background.js` | Prompts, fetch, parse, settings |
-| `content/content.js` | Selection UX, Shadow DOM UI, replace logic |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.2**) |
+| `background.js` | Prompts, fetch, parse, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
+| `content/content.js` | Selection UX, Shadow DOM UI, messaging retries, replace logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |
 | `icons/` | 16 / 48 / 128 PNG icons |
+
+## Related docs
+
+- [INSTALLATION.md](INSTALLATION.md)  
+- [USAGE.md](USAGE.md)  
+- [DEVELOPMENT.md](DEVELOPMENT.md)  
+- [CHANGELOG.md](../CHANGELOG.md)  

@@ -8,19 +8,23 @@
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
+**Current release: [1.1.2](CHANGELOG.md)** — partial-selection Replace fix, reliable messaging on SPAs (X/Twitter), top-fixed toolbar.
+
 ---
 
 ## Features
 
-- **Select-to-check** on almost any `http` / `https` page  
+- **Select-to-check** on almost any `http` / `https` page (including nested frames)  
 - Two modes:
   - **Grammar** — spelling, grammar, punctuation, diacritics  
   - **Grammar + Style** — also clarity, flow, and word choice  
 - **Auto language detection** (EN, CS, SK, …)  
 - Toolbar **fixed at the top** of the viewport (does not cover your selection)  
 - Hides automatically when nothing is selected  
-- **Copy** or **Replace** corrected text (inputs, textareas, contenteditable)  
+- **Copy** or **Replace** — Replace updates **only the selected span**; surrounding text stays (**1.1.2+**)  
+- Works with inputs, textareas, and many contenteditable / `role="textbox"` editors  
 - API key stays in the **background worker** only — never injected into web pages  
+- Resilient messaging after MV3 service-worker sleep or extension reload (**1.1.1+**)
 
 ## Screenshots (what to expect)
 
@@ -48,18 +52,21 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Open the extension popup → paste API key → **Save**  
-5. Optional: **Test connection**
+4. Confirm version **1.1.2** on the extension card  
+5. Open the extension popup → paste API key → **Save**  
+6. Optional: **Test connection**
 
 Full steps: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 
 ### 3. Use it
 
-1. Select text on a webpage  
+1. Select text on a webpage (full field or **part** of a sentence)  
 2. Click **Grammar** or **Grammar + Style**  
-3. Copy or replace the result  
+3. **Copy** or **Replace** the result  
 
 Details: **[docs/USAGE.md](docs/USAGE.md)**
+
+> After every extension **Reload**, hard-refresh open tabs (especially x.com). Otherwise Chrome keeps a dead content script and you may see *Extension context invalidated*.
 
 ---
 
@@ -67,10 +74,11 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.2**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
-| [docs/USAGE.md](docs/USAGE.md) | Everyday use, modes, limits, privacy tips |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, data flow, permissions |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local dev, constants, release checklist |
+| [docs/USAGE.md](docs/USAGE.md) | Everyday use, modes, partial Replace, SPAs |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local dev, constants, test checklist, release |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
 | [SECURITY.md](SECURITY.md) | Vulnerability reporting & data handling |
 | [LICENSE](LICENSE) | MIT license text |
@@ -82,9 +90,9 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 ```
 grammar-grok/
 ├── manifest.json          # Chrome MV3 manifest (v1.1.2)
-├── background.js          # Service worker: xAI API, validation, prompts
+├── background.js          # Service worker: xAI API, validation, prompts, PING
 ├── content/
-│   └── content.js         # Selection toolbar + result panel (Shadow DOM)
+│   └── content.js         # Selection toolbar, result panel, replace, retries
 ├── popup/
 │   ├── popup.html
 │   ├── popup.js
@@ -94,6 +102,7 @@ grammar-grok/
 │   ├── icon48.png
 │   └── icon128.png
 ├── docs/                  # Full documentation
+├── CHANGELOG.md
 ├── LICENSE                # MIT
 ├── CONTRIBUTING.md
 ├── SECURITY.md
@@ -125,6 +134,19 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 | Model | `grok-4.5` | Change in popup; allowlisted models only |
 | Max selection | 8000 chars | Enforced in background + content script |
 | Modes | `grammar` / `style` | System prompts in `background.js` |
+
+---
+
+## Recent fixes (summary)
+
+| Version | Highlights |
+|---------|------------|
+| **1.1.2** | Partial-selection Replace preserves surrounding text; safer contenteditable replace |
+| **1.1.1** | X/Twitter compose / context invalidated recovery; `all_frames`; messaging retries |
+| **1.1.0** | Security hardening; top-fixed toolbar; open-source release |
+| **1.0.0** | Initial public feature set |
+
+Full notes: **[CHANGELOG.md](CHANGELOG.md)**
 
 ---
 
