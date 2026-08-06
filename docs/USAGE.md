@@ -1,12 +1,12 @@
 # Usage guide
 
-**Current version: 1.1.2**
+**Current version: 1.1.4**
 
 ## Everyday flow
 
 1. Open any normal webpage (`https://…` or `http://…`).  
 2. **Select** the text you want to check (at least 3 non-space characters).  
-   You may select the **whole field** or only **part** of a sentence.  
+   You may select the **whole field** or only **part** of a sentence — with the mouse **or** keyboard (**Ctrl+A / Cmd+A**, Shift+arrows, etc.).  
 3. A compact bar appears **fixed at the top center** of the window:
    - **Grammar** — fix mistakes only; keep your voice  
    - **Grammar + Style** — also improve clarity and flow  
@@ -19,6 +19,7 @@
 - Scroll freely — the mode bar stays at the top of the **viewport** and does not cover your selection.  
 - Clear the selection or click away → the mode bar **hides**.  
 - Press **Escape** to close the toolbar and result panel.  
+- Long results use **one** panel scrollbar; corrected text expands to its full height.  
 - Languages such as English, Czech, Slovak (and many others) are **auto-detected**.
 
 ## Choosing a mode
@@ -34,6 +35,8 @@
 |--------|----------|
 | **Copy** | Puts the full corrected text on the clipboard |
 | **Replace** | Swaps **only the text you selected** with the correction. Text before/after the selection in the same box stays put (**1.1.2+**) |
+| **Redo** | Runs the same check again with your **saved** popup model |
+| **Grok 4.5** | One-time recheck with Grok 4.5 when the fast model result is not good enough (does **not** change your saved model) |
 
 **Replace works best in:**
 

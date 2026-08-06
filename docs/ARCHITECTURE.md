@@ -1,6 +1,6 @@
 # Architecture
 
-**Current version: 1.1.2**
+**Current version: 1.1.4**
 
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
@@ -45,8 +45,10 @@ The content script **never** receives or stores the API key. Pages you visit can
 4. On mode click, content script sends `{ type: "CHECK_TEXT", mode, text }` with retries if the worker is cold.  
 5. Background validates sender, mode, text length, API key, and model allowlist.  
 6. Background `POST`s to `https://api.x.ai/v1/chat/completions` with a mode-specific system prompt.  
-7. Model returns JSON (language, corrected text, issues). Background clamps fields.  
-8. Content script renders the result panel (DOM nodes only) and offers Copy / Replace.
+7. Model returns JSON (language, corrected text, issues). Background clamps fields and returns the model id used.  
+8. Content script renders the result panel (DOM nodes only) and offers Copy / Replace / Redo / optional one-shot Grok 4.5.
+
+Optional: result-panel **Redo** re-sends the same text/mode. **Grok 4.5** sends the same request with `{ model: "grok-4.5" }` for one request only (saved popup model is unchanged). Background still allowlists the override.
 
 ### Messaging resilience (1.1.1+)
 
@@ -112,9 +114,9 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.2**) |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.4**) |
 | `background.js` | Prompts, fetch, parse, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
-| `content/content.js` | Selection UX, Shadow DOM UI, messaging retries, replace logic |
+| `content/content.js` | Selection UX (mouse + keyboard), Shadow DOM UI, messaging retries, replace / redo logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |
 | `icons/` | 16 / 48 / 128 PNG icons |
 

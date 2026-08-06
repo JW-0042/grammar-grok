@@ -7,7 +7,25 @@
 (() => {
   // Prefer DOM marker over window globals (isolated world, but avoid page fights)
   const HOST_ID = "grammar-grok-host";
+
+  // Some sites (ad iframes, odd blank frames, prototype-patched pages) throw during
+  // content-script bootstrap. Fail soft so Chrome does not show a hard extension error.
+  try {
+    bootstrap();
+  } catch (err) {
+    try {
+      console.debug("[Grammar Grok] content script init skipped:", err);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function bootstrap() {
+  if (typeof document === "undefined" || !document) return;
   if (document.getElementById(HOST_ID)) return;
+  // Need a real HTML document root; skip XML/SVG-only or not-yet-ready frames.
+  if (!(document.documentElement instanceof Element)) return;
+  if (typeof document.createElement !== "function") return;
 
   const MIN_LEN = 3;
   const MAX_SEND_CHARS = 8000;
@@ -15,6 +33,7 @@
   const SYNC_MS = 48;
   const MAX_ISSUES_UI = 40;
   const MSG_RETRIES = 4;
+  const QUALITY_MODEL = "grok-4.5";
 
   const CSS = `
     :host, * { box-sizing: border-box; }
@@ -126,6 +145,23 @@
       overflow: auto;
       flex: 1;
       min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: #5a5a80 transparent;
+    }
+    .gg-body::-webkit-scrollbar {
+      width: 10px;
+    }
+    .gg-body::-webkit-scrollbar-track {
+      background: transparent;
+      margin: 4px 0;
+    }
+    .gg-body::-webkit-scrollbar-thumb {
+      background: #3f3f63;
+      border-radius: 999px;
+      border: 2px solid #141428;
+    }
+    .gg-body::-webkit-scrollbar-thumb:hover {
+      background: #5a5a80;
     }
     .gg-summary { margin: 0 0 10px; color: #c8c8e0; font-size: 12px; }
     .gg-label {
@@ -138,9 +174,13 @@
       margin-bottom: 6px;
     }
     .gg-corrected {
+      display: block;
       width: 100%;
-      min-height: 100px;
-      resize: vertical;
+      min-height: 0;
+      height: auto;
+      resize: none;
+      overflow: hidden;
+      field-sizing: content;
       background: #0e0e1c;
       border: 1px solid #343454;
       border-radius: 8px;
@@ -148,6 +188,9 @@
       padding: 10px;
       font: inherit;
       line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .gg-corrected:focus { outline: 2px solid rgba(124,106,247,.45); border-color: #7c6af7; }
     .gg-issues {
@@ -245,16 +288,32 @@
   /** @type {string | null} */
   let correctedCache = null;
   let checkSeq = 0;
+  /** Last successful/attempted check params so Redo / quality boost can re-run. */
+  /** @type {{ mode: "grammar" | "style", text: string } | null} */
+  let lastCheckRequest = null;
 
   const host = document.createElement("div");
   host.id = HOST_ID;
   host.setAttribute("data-grammar-grok", "1");
-  host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};`;
+  applyHostShellStyles(host, Z);
 
-  const shadow = host.attachShadow({ mode: "closed" });
+  let shadow;
+  try {
+    if (typeof host.attachShadow !== "function") return;
+    shadow = host.attachShadow({ mode: "closed" });
+  } catch (err) {
+    // Closed shadow roots can be blocked or prototype-patched on some frames.
+    try {
+      console.debug("[Grammar Grok] attachShadow failed:", err);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  if (!shadow) return;
 
   const style = document.createElement("style");
-  style.textContent = CSS;
+  injectStyleText(style, CSS);
   shadow.appendChild(style);
 
   const toolbar = document.createElement("div");
@@ -278,6 +337,50 @@
   panel.setAttribute("aria-label", "Grammar Grok result");
   shadow.appendChild(panel);
 
+  function applyHostShellStyles(el, zIndex) {
+    const css =
+      "all:initial;position:fixed;inset:0;pointer-events:none;z-index:" +
+      String(zIndex) +
+      ";";
+    // Prefer discrete properties over cssText — some pages throw on style.cssText
+    // assignment (prototype patches / frozen style objects / odd iframe docs).
+    try {
+      el.style.setProperty("all", "initial");
+      el.style.setProperty("position", "fixed");
+      el.style.setProperty("inset", "0");
+      el.style.setProperty("pointer-events", "none");
+      el.style.setProperty("z-index", String(zIndex));
+      return;
+    } catch {
+      /* fall through */
+    }
+    try {
+      el.setAttribute("style", css);
+      return;
+    } catch {
+      /* fall through */
+    }
+    try {
+      el.style.cssText = css;
+    } catch {
+      /* last resort already failed — continue without shell styles */
+    }
+  }
+
+  function injectStyleText(styleEl, cssText) {
+    try {
+      styleEl.textContent = cssText;
+      return;
+    } catch {
+      /* Trusted Types / patched textContent */
+    }
+    try {
+      styleEl.appendChild(document.createTextNode(cssText));
+    } catch {
+      /* UI chrome CSS unavailable in this frame */
+    }
+  }
+
   function makeModeButton(mode, ico, label, title) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -299,12 +402,24 @@
   }
 
   function mountHost() {
-    if (!document.documentElement.contains(host)) {
-      document.documentElement.appendChild(host);
+    const root = document.documentElement;
+    if (!(root instanceof Element)) return false;
+    try {
+      if (!root.contains(host)) {
+        root.appendChild(host);
+      }
+      return true;
+    } catch (err) {
+      try {
+        console.debug("[Grammar Grok] mountHost failed:", err);
+      } catch {
+        /* ignore */
+      }
+      return false;
     }
   }
 
-  mountHost();
+  if (!mountHost()) return;
 
   function isTextField(el) {
     return (
@@ -519,16 +634,66 @@
     debounce(showToolbar, 10);
   });
 
+  /** Keyboard gestures that create/extend a text selection (incl. Ctrl/Cmd+A). */
+  function isSelectionGestureKey(e) {
+    if (!e) return false;
+    const key = String(e.key || "");
+    const code = String(e.code || "");
+    if (
+      key === "Shift" ||
+      key.startsWith("Arrow") ||
+      key === "End" ||
+      key === "Home" ||
+      key === "PageUp" ||
+      key === "PageDown"
+    ) {
+      return true;
+    }
+    // Select-all: Ctrl+A (Windows/Linux) or Cmd+A (macOS)
+    const selectAllKey =
+      key.toLowerCase() === "a" || code === "KeyA";
+    if (selectAllKey && (e.ctrlKey || e.metaKey) && !e.altKey) {
+      return true;
+    }
+    return false;
+  }
+
+  function scheduleToolbarFromKeyboard() {
+    // Browser applies the new selection after the key event in many editors.
+    // Check twice: microtask-ish (0ms) and a short follow-up for slower fields.
+    setTimeout(() => {
+      if (!loading) showToolbar();
+    }, 0);
+    setTimeout(() => {
+      if (!loading) showToolbar();
+    }, 30);
+  }
+
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (isEventInHost(e)) return;
+      if (isSelectionGestureKey(e) && ((e.ctrlKey || e.metaKey) || e.shiftKey || e.key.startsWith("Arrow") || e.key === "End" || e.key === "Home" || e.key === "PageUp" || e.key === "PageDown")) {
+        // Especially important for Ctrl/Cmd+A: selection often exists before keyup.
+        if ((e.ctrlKey || e.metaKey) && (String(e.key || "").toLowerCase() === "a" || e.code === "KeyA")) {
+          scheduleToolbarFromKeyboard();
+        }
+      }
+    },
+    true
+  );
+
   document.addEventListener(
     "keyup",
     (e) => {
-      if (
-        e.key === "Shift" ||
-        e.key.startsWith("Arrow") ||
-        e.key === "End" ||
-        e.key === "Home"
-      ) {
-        debounce(showToolbar, 10);
+      if (isEventInHost(e)) return;
+      if (isSelectionGestureKey(e)) {
+        // Ctrl/Cmd+A and Shift/Arrow selections should open the toolbar, not only mouse drags.
+        if ((e.ctrlKey || e.metaKey) && (String(e.key || "").toLowerCase() === "a" || e.code === "KeyA")) {
+          scheduleToolbarFromKeyboard();
+        } else {
+          debounce(showToolbar, 10);
+        }
       }
     },
     true
@@ -612,11 +777,23 @@
     runCheck(mode, text);
   });
 
-  async function runCheck(mode, text) {
+  /**
+   * @param {"grammar"|"style"} mode
+   * @param {string} text
+   * @param {{ model?: string, loadingHint?: string } | undefined} options
+   */
+  async function runCheck(mode, text, options = {}) {
     const seq = ++checkSeq;
     loading = true;
     setToolbarLoading(true);
-    showLoadingPanel(mode);
+    lastCheckRequest = { mode, text };
+    const modelOverride =
+      typeof options.model === "string" && options.model.trim()
+        ? options.model.trim()
+        : null;
+    showLoadingPanel(mode, {
+      modelLabel: modelOverride || options.loadingHint || null,
+    });
 
     try {
       // Warm-up then check (helps after idle tabs / X SPA compose modals)
@@ -627,11 +804,15 @@
         // ignore soft ping failures; CHECK_TEXT still retries
       }
 
-      const res = await sendToBackground({
+      /** @type {{ type: string, mode: string, text: string, model?: string }} */
+      const payload = {
         type: "CHECK_TEXT",
         mode,
         text,
-      });
+      };
+      if (modelOverride) payload.model = modelOverride;
+
+      const res = await sendToBackground(payload);
       // Ignore stale responses if user started another check
       if (seq !== checkSeq) return;
 
@@ -688,7 +869,7 @@
     return b;
   }
 
-  function showLoadingPanel(mode) {
+  function showLoadingPanel(mode, { modelLabel = null } = {}) {
     mountHost();
     clearPanel();
     revealPanel();
@@ -696,7 +877,9 @@
     const head = el("div", "gg-panel-head");
     head.append(el("span", "gg-title", "Checking…"), makeCloseBtn());
     const body = el("div", "gg-body");
-    body.append(el("div", "gg-spinner"), el("p", "gg-muted center", `${label} · language auto-detect`));
+    const bits = [label, "language auto-detect"];
+    if (modelLabel) bits.push(String(modelLabel));
+    body.append(el("div", "gg-spinner"), el("p", "gg-muted center", bits.join(" · ")));
     panel.append(head, body);
   }
 
@@ -730,10 +913,12 @@
 
     const modeLabel = data.mode === "style" ? "Grammar + Style" : "Grammar";
     const lang = String(data.languageName || data.language || "Unknown").slice(0, 64);
+    const modelUsed = String(data.model || "").trim();
     const issues = Array.isArray(data.issues)
       ? data.issues.slice(0, MAX_ISSUES_UI)
       : [];
     const canReplace = Boolean(selectionState.editable || selectionState.range);
+    const canRerun = Boolean(lastCheckRequest?.text);
     const corrected = String(data.corrected ?? "");
     correctedCache = corrected;
 
@@ -744,6 +929,9 @@
       el("span", "gg-badge", lang),
       el("span", "gg-badge gg-badge-muted", modeLabel)
     );
+    if (modelUsed) {
+      left.append(el("span", "gg-badge gg-badge-muted", modelUsed));
+    }
     head.append(left, makeCloseBtn());
 
     const body = el("div", "gg-body");
@@ -754,9 +942,18 @@
     const ta = document.createElement("textarea");
     ta.className = "gg-corrected";
     ta.readOnly = true;
-    ta.rows = 6;
+    ta.rows = 1;
+    ta.setAttribute("aria-label", "Corrected text");
     ta.value = corrected;
+    // Grow with content so only the panel body scrolls (no nested textarea scrollbar).
+    const fitCorrected = () => {
+      ta.style.height = "auto";
+      ta.style.height = `${Math.max(ta.scrollHeight, 1)}px`;
+    };
     body.append(ta);
+    fitCorrected();
+    // Second pass after layout (fonts/wrap) to avoid a short clipped first paint.
+    requestAnimationFrame(fitCorrected);
 
     if (issues.length > 0) {
       const ul = el("ul", "gg-issues");
@@ -790,6 +987,22 @@
       rep.type = "button";
       rep.dataset.action = "replace";
       foot.append(rep);
+    }
+    if (canRerun) {
+      const redo = el("button", "gg-action", "Redo");
+      redo.type = "button";
+      redo.dataset.action = "redo";
+      redo.title = "Run the same check again with your saved model";
+      foot.append(redo);
+
+      // One-shot quality boost when the fast default model is not good enough.
+      if (modelUsed !== QUALITY_MODEL) {
+        const quality = el("button", "gg-action", "Grok 4.5");
+        quality.type = "button";
+        quality.dataset.action = "redo-quality";
+        quality.title = "One-time recheck with Grok 4.5 (does not change your saved model)";
+        foot.append(quality);
+      }
     }
     const close = el("button", "gg-action", "Close");
     close.type = "button";
@@ -865,6 +1078,25 @@
         } catch {
           showToast("Could not replace selection", true);
         }
+      }
+      return;
+    }
+
+    if (action === "redo" || action === "redo-quality") {
+      if (loading) return;
+      const req = lastCheckRequest;
+      if (!req?.text) {
+        showToast("Nothing to redo", true);
+        return;
+      }
+      if (action === "redo-quality") {
+        runCheck(req.mode, req.text, {
+          model: QUALITY_MODEL,
+          loadingHint: QUALITY_MODEL,
+        });
+      } else {
+        // Same check again with the model saved in the extension popup.
+        runCheck(req.mode, req.text);
       }
     }
   });
@@ -1201,4 +1433,5 @@
       root.dispatchEvent(new Event("input", { bubbles: true }));
     }
   }
+  } // bootstrap
 })();

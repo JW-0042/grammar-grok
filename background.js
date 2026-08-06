@@ -162,7 +162,14 @@ async function handleCheck(message) {
   }
 
   const checkMode = message.mode === "style" ? "style" : "grammar";
-  const { apiKey, model } = await getSettings();
+  const { apiKey, model: savedModel } = await getSettings();
+  // Optional one-shot model override from the result panel (e.g. Retry with Grok 4.5).
+  // Only allowlisted ids are accepted; otherwise fall back to the user's saved model.
+  const model = sanitizeModel(
+    typeof message.model === "string" && message.model.trim()
+      ? message.model
+      : savedModel
+  );
 
   if (!apiKey) {
     return {
@@ -211,6 +218,7 @@ async function handleCheck(message) {
       data: {
         ...parsed,
         mode: checkMode,
+        model,
       },
     };
   } finally {

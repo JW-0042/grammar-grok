@@ -5,6 +5,29 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.4] — 2026-08-06
+
+### Added
+
+- Result panel actions: **Redo** (same check again with the saved popup model) and one-shot **Grok 4.5** recheck without changing the saved model.
+- Result header shows the model that actually answered the request.
+
+### Fixed
+
+- Content script bootstrap no longer hard-crashes Chrome on some sites (e.g. recepty.cz with ad iframes). Host shell styles avoid fragile `style.cssText` assignment; Shadow DOM attach and host mount fail soft per frame.
+- Toolbar also appears after **keyboard selection**, including **Ctrl+A / Cmd+A** (not only mouse drag).
+- Result panel no longer shows nested scrollbars: corrected text expands to fit content; only the panel body scrolls, with dark-themed scrollbar styling.
+
+### Docs
+
+- Documentation aligned to **1.1.4**.
+
+## [1.1.3] — 2026-08-06
+
+### Note
+
+- Intermediate local work was folded into **1.1.4** (bootstrap hardening, keyboard selection, redo actions, panel scroll polish).
+
 ## [1.1.2] — 2026-07-30
 
 ### Fixed
@@ -61,7 +84,9 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.1.2]: https://github.com/JW-0042/grammar-grok/compare/v1.1.1...HEAD
+[1.1.4]: https://github.com/JW-0042/grammar-grok/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/JW-0042/grammar-grok/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/JW-0042/grammar-grok/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/JW-0042/grammar-grok/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/JW-0042/grammar-grok/releases/tag/v1.1.0
 [1.0.0]: https://github.com/JW-0042/grammar-grok/releases/tag/v1.0.0

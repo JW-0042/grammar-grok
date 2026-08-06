@@ -1,6 +1,6 @@
 # Installation
 
-**Current version: 1.1.2** (see [`manifest.json`](../manifest.json) and [CHANGELOG.md](../CHANGELOG.md)).
+**Current version: 1.1.4** (see [`manifest.json`](../manifest.json) and [CHANGELOG.md](../CHANGELOG.md)).
 
 ## Requirements
 
@@ -28,7 +28,7 @@
 
 4. Click **Load unpacked** and select the project folder that contains `manifest.json`.
 
-5. Confirm the card shows **Grammar Grok** version **1.1.2**.
+5. Confirm the card shows **Grammar Grok** version **1.1.4**.
 
 6. Pin **Grammar Grok** to the toolbar (puzzle icon → pin).
 
