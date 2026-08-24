@@ -1,6 +1,6 @@
 # Development
 
-**Current version: 1.1.4**
+**Current version: 1.1.5**
 
 ## Stack
 
@@ -9,6 +9,12 @@
 - xAI OpenAI-compatible Chat Completions API  
 
 No `npm install` is required to run or load the extension.
+
+Run the background regression tests with:
+
+```bash
+node --test tests/background.test.js
+```
 
 ## Local workflow
 
@@ -76,6 +82,11 @@ Keep these in sync when releasing:
 - [ ] Result panel has a **single** scrollbar (no nested textarea scrollbar)  
 - [ ] Deselect / click away → toolbar **disappears**  
 - [ ] Grammar mode returns structured UI  
+- [ ] **Translate to EN** returns English text; source language badge; Replace inserts translation
+- [ ] Leading/trailing whitespace survives Copy / Replace
+- [ ] Read-only page text does not offer Replace
+- [ ] Invalid/truncated JSON shows an error (never **Already English**)
+- [ ] Concurrent checks in two tabs both complete
 - [ ] Style mode differs in prompt behavior  
 - [ ] EN / CS / SK sample sentences  
 - [ ] Missing API key shows clear error  

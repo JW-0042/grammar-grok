@@ -8,6 +8,10 @@ const DEFAULT_MODEL = "grok-4.5";
 const MAX_CHARS = 8000;
 const MAX_ISSUES = 40;
 const MAX_FIELD_LEN = 12000;
+const MAX_TRANSLATED_CHARS = 40000;
+const MAX_RESPONSE_CHARS = 100000;
+const DEFAULT_MAX_TOKENS = 4096;
+const TRANSLATE_MAX_TOKENS = 16384;
 const FETCH_TIMEOUT_MS = 60000;
 const MIN_REQUEST_GAP_MS = 400;
 
@@ -64,10 +68,44 @@ Task: GRAMMAR + STYLISTICS.
 Do not change the meaning or invent new facts. Prefer light, natural edits over heavy rewrites.
 
 ${SHARED_JSON_RULES}`,
+
+  translate: `You are an expert translator into English.
+
+Task: TRANSLATE TO ENGLISH.
+Translate the user text into English. Produce a complete English version of the selection, not a grammar-only rewrite in the source language.
+
+You MUST respond with a single JSON object only (no markdown fences, no commentary).
+Schema:
+{
+  "language": "ISO 639-1 code of the SOURCE language (e.g. en, cs, sk, de)",
+  "languageName": "English name of the SOURCE language",
+  "hasChanges": true/false,
+  "corrected": "full English translation (or original if already English)",
+  "issues": [
+    {
+      "type": "translation|other",
+      "original": "source fragment",
+      "suggestion": "English fragment",
+      "explanation": "short note in English about a nuance, idiom, or choice"
+    }
+  ],
+  "summary": "one short English sentence (e.g. Translated from Slovak.)"
+}
+
+Rules:
+- Auto-detect the source language.
+- Translate the entire user text into natural, fluent English.
+- Preserve meaning, tone, formatting intent (line breaks), and proper names / brand names.
+- Do not add facts, commentary, titles, or quotes around the translation.
+- Keep corrected as the complete English text ready to replace the selection.
+- If the text is already English, set hasChanges to false, corrected = original text, issues = [].
+- Keep issues concise; at most 40 items. Skip trivial word-for-word notes.
+`,
 };
 
-/** @type {AbortController | null} */
-let activeAbort = null;
+/** One active request per tab/frame; checks in other tabs must not cancel each other. */
+/** @type {Map<string, AbortController>} */
+const activeAborts = new Map();
 let lastRequestAt = 0;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -88,7 +126,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "CHECK_TEXT") {
-    handleCheck(message)
+    handleCheck(message, sender)
       .then(sendResponse)
       .catch((err) => {
         sendResponse({ ok: false, error: safeErrorMessage(err) });
@@ -123,6 +161,31 @@ function safeErrorMessage(err) {
   return msg;
 }
 
+function normalizeMode(mode) {
+  const m = String(mode || "").trim();
+  if (m === "style" || m === "translate") return m;
+  return "grammar";
+}
+
+function requestScope(sender) {
+  const tabId = sender?.tab?.id;
+  if (typeof tabId === "number") {
+    return `tab:${tabId}:frame:${sender?.frameId ?? 0}`;
+  }
+  return `extension:${String(sender?.url || "unknown")}`;
+}
+
+function splitBoundaryWhitespace(raw) {
+  const leading = raw.match(/^\s*/)?.[0] || "";
+  const rest = raw.slice(leading.length);
+  const trailing = rest.match(/\s*$/)?.[0] || "";
+  return {
+    leading,
+    core: rest.slice(0, rest.length - trailing.length),
+    trailing,
+  };
+}
+
 function sanitizeModel(model) {
   const m = String(model || "").trim();
   if (ALLOWED_MODELS.has(m)) return m;
@@ -147,21 +210,21 @@ async function getSettings() {
   };
 }
 
-async function handleCheck(message) {
+async function handleCheck(message, sender) {
   const raw = typeof message.text === "string" ? message.text : "";
-  const trimmed = raw.trim();
+  const { leading, core, trailing } = splitBoundaryWhitespace(raw);
 
-  if (trimmed.length < 1) {
+  if (core.length < 1) {
     return { ok: false, error: "No text selected." };
   }
-  if (trimmed.length > MAX_CHARS) {
+  if (raw.length > MAX_CHARS) {
     return {
       ok: false,
-      error: `Selection is too long (${trimmed.length} chars). Maximum is ${MAX_CHARS}.`,
+      error: `Selection is too long (${raw.length} chars). Maximum is ${MAX_CHARS}.`,
     };
   }
 
-  const checkMode = message.mode === "style" ? "style" : "grammar";
+  const checkMode = normalizeMode(message.mode);
   const { apiKey, model: savedModel } = await getSettings();
   // Optional one-shot model override from the result panel (e.g. Retry with Grok 4.5).
   // Only allowlisted ids are accepted; otherwise fall back to the user's saved model.
@@ -192,15 +255,18 @@ async function handleCheck(message) {
   }
   lastRequestAt = Date.now();
 
-  // Cancel any previous in-flight check (user double-clicked)
-  if (activeAbort) {
+  const scope = requestScope(sender);
+  const previousAbort = activeAborts.get(scope);
+  // Cancel only a previous check from the same tab/frame (e.g. a double-click).
+  if (previousAbort) {
     try {
-      activeAbort.abort();
+      previousAbort.abort();
     } catch {
       /* ignore */
     }
   }
-  activeAbort = new AbortController();
+  const activeAbort = new AbortController();
+  activeAborts.set(scope, activeAbort);
   const signal = activeAbort.signal;
 
   try {
@@ -208,21 +274,32 @@ async function handleCheck(message) {
       apiKey,
       model,
       system: PROMPTS[checkMode],
-      user: trimmed,
+      user: core,
+      maxTokens:
+        checkMode === "translate"
+          ? TRANSLATE_MAX_TOKENS
+          : DEFAULT_MAX_TOKENS,
+      jsonMode: true,
       signal,
     });
 
-    const parsed = parseJsonResponse(content, trimmed);
+    const parsed = parseJsonResponse(content, core, checkMode);
+    if (parsed.parseError) {
+      return { ok: false, error: parsed.parseError };
+    }
     return {
       ok: true,
       data: {
         ...parsed,
+        corrected: leading + parsed.corrected + trailing,
         mode: checkMode,
         model,
       },
     };
   } finally {
-    if (activeAbort?.signal === signal) activeAbort = null;
+    if (activeAborts.get(scope)?.signal === signal) {
+      activeAborts.delete(scope);
+    }
   }
 }
 
@@ -263,7 +340,8 @@ async function callGrok({
   model,
   system,
   user,
-  maxTokens = 4096,
+  maxTokens = DEFAULT_MAX_TOKENS,
+  jsonMode = false,
   signal,
 }) {
   const controller = new AbortController();
@@ -278,42 +356,54 @@ async function callGrok({
   }
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
+  const requestBody = {
+    model: sanitizeModel(model),
+    temperature: 0.2,
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+  };
+  if (jsonMode) {
+    requestBody.response_format = { type: "json_object" };
+  }
+
   let res;
+  let body;
   try {
-    res = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: sanitizeModel(model),
-        temperature: 0.2,
-        max_tokens: maxTokens,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err?.name === "AbortError") {
-      throw Object.assign(new Error("Request timed out or was cancelled."), {
-        name: "AbortError",
+    try {
+      res = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        throw Object.assign(new Error("Request timed out or was cancelled."), {
+          name: "AbortError",
+        });
+      }
+      throw new Error("Network error talking to xAI. Check your connection.");
     }
-    throw new Error("Network error talking to xAI. Check your connection.");
+
+    try {
+      body = await res.json();
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        throw Object.assign(new Error("Request timed out or was cancelled."), {
+          name: "AbortError",
+        });
+      }
+      throw new Error(`xAI API returned non-JSON (HTTP ${res.status}).`);
+    }
   } finally {
     clearTimeout(timer);
     if (signal) signal.removeEventListener("abort", onOuterAbort);
-  }
-
-  let body;
-  try {
-    body = await res.json();
-  } catch {
-    throw new Error(`xAI API returned non-JSON (HTTP ${res.status}).`);
   }
 
   if (!res.ok) {
@@ -334,11 +424,14 @@ async function callGrok({
   return content;
 }
 
-function parseJsonResponse(content, fallbackText) {
+function parseJsonResponse(content, fallbackText, mode = "grammar") {
   let text = String(content).trim();
 
-  if (text.length > MAX_FIELD_LEN * 2) {
-    text = text.slice(0, MAX_FIELD_LEN * 2);
+  if (text.length > MAX_RESPONSE_CHARS) {
+    return {
+      parseError:
+        "The model response was too large to process safely. Select a shorter passage and try again.",
+    };
   }
 
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -356,25 +449,15 @@ function parseJsonResponse(content, fallbackText) {
   try {
     data = JSON.parse(text);
   } catch {
-    // Do not treat free-form model prose as a safe full replacement
     return {
-      language: "und",
-      languageName: "Unknown",
-      hasChanges: false,
-      corrected: fallbackText,
-      issues: [],
-      summary: "Could not parse structured result. Try again.",
+      parseError:
+        "Grok returned an incomplete or invalid result. Try again, or select a shorter passage.",
     };
   }
 
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     return {
-      language: "und",
-      languageName: "Unknown",
-      hasChanges: false,
-      corrected: fallbackText,
-      issues: [],
-      summary: "Invalid response shape.",
+      parseError: "Grok returned an invalid result shape. Try again.",
     };
   }
 
@@ -386,11 +469,21 @@ function parseJsonResponse(content, fallbackText) {
     explanation: clampStr(i?.explanation ?? "", 500),
   }));
 
-  let corrected =
-    typeof data.corrected === "string" && data.corrected.length
-      ? data.corrected
-      : fallbackText;
-  corrected = clampStr(corrected, MAX_FIELD_LEN);
+  if (typeof data.corrected !== "string" || data.corrected.length < 1) {
+    return {
+      parseError: "Grok returned a result without usable corrected text. Try again.",
+    };
+  }
+  const corrected = data.corrected;
+  const correctedLimit =
+    mode === "translate" ? MAX_TRANSLATED_CHARS : MAX_FIELD_LEN;
+  if (corrected.length > correctedLimit) {
+    const resultLabel = mode === "translate" ? "translated" : "corrected";
+    return {
+      parseError:
+        `The ${resultLabel} result is too long to insert safely. Select a shorter passage and try again.`,
+    };
+  }
 
   return {
     language: clampStr(data.language || "und", 16),

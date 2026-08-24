@@ -289,7 +289,7 @@
   let correctedCache = null;
   let checkSeq = 0;
   /** Last successful/attempted check params so Redo / quality boost can re-run. */
-  /** @type {{ mode: "grammar" | "style", text: string } | null} */
+  /** @type {{ mode: "grammar" | "style" | "translate", text: string } | null} */
   let lastCheckRequest = null;
 
   const host = document.createElement("div");
@@ -326,10 +326,14 @@
   sep.className = "gg-sep";
   sep.setAttribute("aria-hidden", "true");
   const btnStyle = makeModeButton("style", "✎", "Grammar + Style", "Grammar + style / clarity");
-  toolbar.append(btnGrammar, sep, btnStyle);
+  const sep2 = document.createElement("span");
+  sep2.className = "gg-sep";
+  sep2.setAttribute("aria-hidden", "true");
+  const btnTranslate = makeModeButton("translate", "EN", "Translate to EN", "Translate selection to English");
+  toolbar.append(btnGrammar, sep, btnStyle, sep2, btnTranslate);
   shadow.appendChild(toolbar);
 
-  const toolbarButtons = [btnGrammar, btnStyle];
+  const toolbarButtons = [btnGrammar, btnStyle, btnTranslate];
 
   const panel = document.createElement("div");
   panel.className = "gg-panel";
@@ -381,6 +385,18 @@
     }
   }
 
+  function normalizeMode(mode) {
+    const m = String(mode || "").trim();
+    if (m === "style" || m === "translate") return m;
+    return "grammar";
+  }
+
+  function modeLabel(mode) {
+    if (mode === "style") return "Grammar + Style";
+    if (mode === "translate") return "Translate to EN";
+    return "Grammar";
+  }
+
   function makeModeButton(mode, ico, label, title) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -427,6 +443,27 @@
       (el instanceof HTMLInputElement &&
         /^(text|search|email|url|tel|password|number|)$/i.test(el.type || "text"))
     );
+  }
+
+  function isWritableTextField(el) {
+    return (
+      isTextField(el) &&
+      !el.disabled &&
+      !el.readOnly
+    );
+  }
+
+  function isWritableRichEditable(el) {
+    return Boolean(
+      el instanceof HTMLElement &&
+        (el.isContentEditable || el.getAttribute("role") === "textbox") &&
+        el.getAttribute("aria-readonly") !== "true" &&
+        el.getAttribute("aria-disabled") !== "true"
+    );
+  }
+
+  function isWritableEditable(el) {
+    return isWritableTextField(el) || isWritableRichEditable(el);
   }
 
   function findEditable(node) {
@@ -764,13 +801,13 @@
     if (!btn || loading) return;
     e.preventDefault();
     e.stopPropagation();
-    const mode = btn.getAttribute("data-mode") === "style" ? "style" : "grammar";
+    const mode = normalizeMode(btn.getAttribute("data-mode"));
     const text = selectionState.text || captureSelection()?.text || "";
     const trimmed = text.trim();
     if (trimmed.length < MIN_LEN) return;
-    if (trimmed.length > MAX_SEND_CHARS) {
+    if (text.length > MAX_SEND_CHARS) {
       showErrorPanel(
-        `Selection is too long (${trimmed.length} chars). Maximum is ${MAX_SEND_CHARS}.`
+        `Selection is too long (${text.length} chars). Maximum is ${MAX_SEND_CHARS}.`
       );
       return;
     }
@@ -778,7 +815,7 @@
   });
 
   /**
-   * @param {"grammar"|"style"} mode
+   * @param {"grammar"|"style"|"translate"} mode
    * @param {string} text
    * @param {{ model?: string, loadingHint?: string } | undefined} options
    */
@@ -873,7 +910,7 @@
     mountHost();
     clearPanel();
     revealPanel();
-    const label = mode === "style" ? "Grammar + Style" : "Grammar";
+    const label = modeLabel(mode);
     const head = el("div", "gg-panel-head");
     head.append(el("span", "gg-title", "Checking…"), makeCloseBtn());
     const body = el("div", "gg-body");
@@ -911,13 +948,15 @@
     clearPanel();
     revealPanel();
 
-    const modeLabel = data.mode === "style" ? "Grammar + Style" : "Grammar";
+    const usedMode = normalizeMode(data.mode);
+    const modeBadge = modeLabel(usedMode);
     const lang = String(data.languageName || data.language || "Unknown").slice(0, 64);
     const modelUsed = String(data.model || "").trim();
+    const sourceLanguage = String(data.language || "").trim().toLowerCase();
     const issues = Array.isArray(data.issues)
       ? data.issues.slice(0, MAX_ISSUES_UI)
       : [];
-    const canReplace = Boolean(selectionState.editable || selectionState.range);
+    const canReplace = isWritableEditable(selectionState.editable);
     const canRerun = Boolean(lastCheckRequest?.text);
     const corrected = String(data.corrected ?? "");
     correctedCache = corrected;
@@ -925,9 +964,19 @@
     const head = el("div", "gg-panel-head");
     const left = el("div", "gg-head-left");
     left.append(
-      el("span", "gg-title", data.hasChanges ? "Suggestions" : "Looks good"),
+      el(
+        "span",
+        "gg-title",
+        usedMode === "translate"
+          ? !data.hasChanges && sourceLanguage === "en"
+            ? "Already English"
+            : "Translation"
+          : data.hasChanges
+            ? "Suggestions"
+            : "Looks good"
+      ),
       el("span", "gg-badge", lang),
-      el("span", "gg-badge gg-badge-muted", modeLabel)
+      el("span", "gg-badge gg-badge-muted", modeBadge)
     );
     if (modelUsed) {
       left.append(el("span", "gg-badge gg-badge-muted", modelUsed));
@@ -938,12 +987,15 @@
     if (data.summary) {
       body.append(el("p", "gg-summary", String(data.summary).slice(0, 400)));
     }
-    body.append(el("label", "gg-label", "Corrected text"));
+    body.append(el("label", "gg-label", usedMode === "translate" ? "English translation" : "Corrected text"));
     const ta = document.createElement("textarea");
     ta.className = "gg-corrected";
     ta.readOnly = true;
     ta.rows = 1;
-    ta.setAttribute("aria-label", "Corrected text");
+    ta.setAttribute(
+      "aria-label",
+      usedMode === "translate" ? "English translation" : "Corrected text"
+    );
     ta.value = corrected;
     // Grow with content so only the panel body scrolls (no nested textarea scrollbar).
     const fitCorrected = () => {
@@ -1123,14 +1175,11 @@
     const original = selectionState.text || "";
     const editable = selectionState.editable;
 
-    if (
-      editable instanceof HTMLInputElement ||
-      editable instanceof HTMLTextAreaElement
-    ) {
+    if (isWritableTextField(editable)) {
       return replaceInTextControl(editable, text, original);
     }
 
-    if (editable?.isContentEditable || selectionState.range) {
+    if (isWritableRichEditable(editable)) {
       return replaceInRichEditable(editable, text, original);
     }
 

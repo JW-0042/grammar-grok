@@ -1,6 +1,6 @@
 # Architecture
 
-**Current version: 1.1.4**
+**Current version: 1.1.5**
 
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
@@ -46,9 +46,11 @@ The content script **never** receives or stores the API key. Pages you visit can
 5. Background validates sender, mode, text length, API key, and model allowlist.  
 6. Background `POST`s to `https://api.x.ai/v1/chat/completions` with a mode-specific system prompt.  
 7. Model returns JSON (language, corrected text, issues). Background clamps fields and returns the model id used.  
-8. Content script renders the result panel (DOM nodes only) and offers Copy / Replace / Redo / optional one-shot Grok 4.5.
+8. Content script renders the result panel (DOM nodes only) and offers Copy / Replace / Redo / optional one-shot Grok 4.5 (including after Translate to EN).
 
 Optional: result-panel **Redo** re-sends the same text/mode. **Grok 4.5** sends the same request with `{ model: "grok-4.5" }` for one request only (saved popup model is unchanged). Background still allowlists the override.
+
+Checks use xAI JSON mode. Leading/trailing selection whitespace is kept outside the model request and restored around the result. Active requests are tracked per tab/frame, so a new check only cancels an older request from the same content-script scope.
 
 ### Messaging resilience (1.1.1+)
 
@@ -64,8 +66,9 @@ Optional: result-panel **Redo** re-sends the same text/mode. **Grok 4.5** sends 
 |------|----------------|
 | `grammar` | Spelling, grammar, punctuation, diacritics only |
 | `style` | Grammar + clarity, flow, word choice (same meaning) |
+| `translate` | Translate the selection into English; `corrected` is the English text |
 
-Language is **auto-detected** by the model (English, Czech, Slovak, and others).
+Language is **auto-detected** by the model (English, Czech, Slovak, and others). `translate` reports the source language and writes English into `corrected`.
 
 ## Replace strategy (1.1.2+)
 
@@ -114,7 +117,7 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.4**) |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.5**) |
 | `background.js` | Prompts, fetch, parse, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
 | `content/content.js` | Selection UX (mouse + keyboard), Shadow DOM UI, messaging retries, replace / redo logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |

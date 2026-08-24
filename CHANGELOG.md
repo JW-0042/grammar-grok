@@ -5,6 +5,24 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.5] — 2026-08-24
+
+### Added
+
+- Selection toolbar action **Translate to EN**: detect the source language and translate the selected text into English. Copy / Replace / Redo work the same as for grammar checks.
+
+### Fixed
+
+- Replace is offered only for writable inputs, textareas, and rich-text editors—not ordinary page text.
+- Leading/trailing whitespace in a selection is preserved around corrected or translated text.
+- Translation uses structured JSON output with a larger output budget and explicit size errors instead of silent truncation.
+- Invalid/incomplete model responses show an error instead of the misleading **Already English** state.
+- Concurrent checks are isolated per tab/frame; one tab no longer cancels another.
+
+### Tests
+
+- Added Node regression coverage for translation whitespace, invalid JSON, long output, and concurrent tabs.
+
 ## [1.1.4] — 2026-08-06
 
 ### Added
@@ -84,7 +102,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.1.4]: https://github.com/JW-0042/grammar-grok/compare/v1.1.3...HEAD
+[1.1.5]: https://github.com/JW-0042/grammar-grok/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/JW-0042/grammar-grok/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/JW-0042/grammar-grok/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/JW-0042/grammar-grok/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/JW-0042/grammar-grok/compare/v1.1.0...v1.1.1

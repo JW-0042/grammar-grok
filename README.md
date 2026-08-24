@@ -3,18 +3,19 @@
 **Proofread any webpage with Grok** — select text, pick **Grammar** or **Grammar + Style**, get corrections with automatic language detection (English, Czech, Slovak, and more).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.4-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.1.5-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
-**Current release: [1.1.4](CHANGELOG.md)** — keyboard select-all, Redo / one-shot Grok 4.5, safer bootstrap, single-scrollbar result panel.
+**Current release: [1.1.5](CHANGELOG.md)** — Translate to EN, Redo / Grok 4.5, keyboard select-all, single-scrollbar result panel.
 
 ---
 
 ## Features
 
 - **Select-to-check** on almost any `http` / `https` page (including nested frames) — mouse or keyboard (**Ctrl+A**)  
+- **Translate to EN** — any selected language into English
 - Two modes:
   - **Grammar** — spelling, grammar, punctuation, diacritics  
   - **Grammar + Style** — also clarity, flow, and word choice  
@@ -29,8 +30,8 @@
 
 ## Screenshots (what to expect)
 
-1. Select text → top bar: `Grammar` | `Grammar + Style`  
-2. Result panel: language/model badges, corrected text, issue list, Copy / Replace / Redo / Grok 4.5  
+1. Select text → top bar: `Grammar` | `Grammar + Style` | `Translate to EN`
+2. Result panel: language/model badges, corrected or translated text, issue list, Copy / Replace / Redo / Grok 4.5
 
 *(UI is dark, compact, and isolated via Shadow DOM so site CSS cannot restyle it easily.)*
 
@@ -53,7 +54,7 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Confirm version **1.1.4** on the extension card  
+4. Confirm version **1.1.5** on the extension card
 5. Open the extension popup → paste API key → **Save**  
 6. Optional: **Test connection**
 
@@ -75,7 +76,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.4**) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.5**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
 | [docs/USAGE.md](docs/USAGE.md) | Everyday use, modes, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
@@ -90,7 +91,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.1.4)
+├── manifest.json          # Chrome MV3 manifest (v1.1.5)
 ├── background.js          # Service worker: xAI API, validation, prompts, PING
 ├── content/
 │   └── content.js         # Selection toolbar, result panel, replace, retries
@@ -142,6 +143,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
+| **1.1.5** | Translate to EN from the selection toolbar |
 | **1.1.4** | Ctrl+A toolbar, Redo / Grok 4.5, single-scrollbar result panel, safer bootstrap |
 | **1.1.3** | Content-script bootstrap crash on some sites/ad frames |
 | **1.1.2** | Partial-selection Replace preserves surrounding text; safer contenteditable replace |

@@ -1,6 +1,6 @@
 # Usage guide
 
-**Current version: 1.1.4**
+**Current version: 1.1.5**
 
 ## Everyday flow
 
@@ -10,6 +10,7 @@
 3. A compact bar appears **fixed at the top center** of the window:
    - **Grammar** — fix mistakes only; keep your voice  
    - **Grammar + Style** — also improve clarity and flow  
+   - **Translate to EN** — translate the selection into English
 4. Wait for the result panel (right side).  
 5. Read the language badge, summary, corrected text, and issue list.  
 6. **Copy** the result, or **Replace** when the selection is in an editable field.
@@ -28,6 +29,7 @@
 |------|----------|
 | Grammar | You want correctness only (spelling, agreement, punctuation, diacritics) |
 | Grammar + Style | You also want smoother, clearer wording without changing meaning |
+| Translate to EN | The selection is in another language and you want a fluent English version |
 
 ## Copy vs Replace
 
