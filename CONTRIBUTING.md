@@ -2,7 +2,7 @@
 
 Thanks for helping improve Grammar Grok. Contributions of all kinds are welcome: bug fixes, features, docs, translations, and UX polish.
 
-**Current version: 1.1.5** — see [CHANGELOG.md](CHANGELOG.md).
+**Current version: 1.1.6** — see [CHANGELOG.md](CHANGELOG.md).
 
 ## License & attribution
 

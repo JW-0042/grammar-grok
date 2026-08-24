@@ -1,6 +1,6 @@
 # Architecture
 
-**Current version: 1.1.5**
+**Current version: 1.1.6**
 
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
@@ -75,11 +75,15 @@ Language is **auto-detected** by the model (English, Czech, Slovak, and others).
 
 | Target | Strategy |
 |--------|----------|
-| `input` / `textarea` | `setRangeText` or `before + corrected + after` using stored offsets; fire `input`/`change` |
-| `contenteditable` | Prefer `document.execCommand("insertText")` over restored `Range`; fallback Range API with **verification**; restore original if insert fails |
+| `input` / `textarea` | `setRangeText` or `before + corrected + after` using stored offsets; fire one replacement `input` event |
+| Plain `contenteditable` | Prefer `document.execCommand("insertText")`; fallback Range API with **verification**; restore original if insert fails |
+| X / Draft.js | Dispatch a scoped synthetic plain-text paste so Draft's own handler updates immutable `EditorState` and DOM together; no system clipboard access |
+| Other stateful rich editor (`role="textbox"`, Lexical/Slate/ProseMirror markers) | Native `insertText` only; if it fails, return false so the UI copies instead of creating non-editable “ghost” DOM |
 | Failure | Return false → UI may copy instead of claiming a bad replace |
 
 **Invariant:** never delete the selected range unless the correction is successfully inserted (or original is restored).
+
+After success, the live selection is collapsed and the stored replacement Range is discarded. If Draft.js leaves the caret on the editor root, it is moved into the nearest real text node so further typing is accepted. The `execCommand("insertText")` path relies on Chrome's native input event instead of emitting a duplicate synthetic transaction (**1.1.6+**).
 
 ## Permissions
 
@@ -118,7 +122,7 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.5**) |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.6**) |
 | `background.js` | Grammar/style/translation prompts, fetch, response validation, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
 | `content/content.js` | Selection UX (mouse + keyboard), three-action toolbar, Shadow DOM UI, messaging retries, replace / redo logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |

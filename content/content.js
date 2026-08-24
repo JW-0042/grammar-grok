@@ -295,6 +295,14 @@
   const host = document.createElement("div");
   host.id = HOST_ID;
   host.setAttribute("data-grammar-grok", "1");
+  try {
+    host.setAttribute(
+      "data-grammar-grok-version",
+      chrome.runtime.getManifest().version
+    );
+  } catch {
+    /* diagnostic marker is optional */
+  }
   applyHostShellStyles(host, Z);
 
   let shadow;
@@ -1119,8 +1127,20 @@
     }
 
     if (action === "replace") {
+      const editable = selectionState.editable;
       const ok = replaceSelection(corrected);
       if (ok) {
+        settleSelectionAfterReplace(editable);
+        // Draft.js may reconcile its DOM/selection just after the input event.
+        // Normalize once more after that render, but never steal focus back.
+        requestAnimationFrame(() => {
+          const liveSelection = window.getSelection();
+          if (document.activeElement === editable && liveSelection?.isCollapsed) {
+            settleSelectionAfterReplace(editable);
+          }
+        });
+        selectionState = emptySelection();
+        hideToolbar();
         showToast("Replaced");
         setTimeout(hidePanel, 500);
       } else {
@@ -1186,20 +1206,100 @@
     return false;
   }
 
-  function fireTextInputEvents(el, data) {
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
+  function fireTextInputEvent(el, data) {
     try {
       el.dispatchEvent(
         new InputEvent("input", {
           bubbles: true,
-          cancelable: true,
+          composed: true,
           inputType: "insertReplacementText",
           data: data,
         })
       );
     } catch {
-      /* InputEvent options not supported */
+      el.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    }
+  }
+
+  function findEdgeTextNode(node, fromEnd) {
+    if (!node) return null;
+    if (node.nodeType === Node.TEXT_NODE) return node;
+
+    const children = node.childNodes;
+    if (!children?.length) return null;
+
+    if (fromEnd) {
+      for (let i = children.length - 1; i >= 0; i -= 1) {
+        const found = findEdgeTextNode(children[i], true);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    for (let i = 0; i < children.length; i += 1) {
+      const found = findEdgeTextNode(children[i], false);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  /**
+   * Leave a normal collapsed caret and discard the Range retained for Replace.
+   * Draft.js can leave a collapsed caret on the editor root after insertText;
+   * move that boundary into a real text node so the next edit is accepted.
+   */
+  function settleSelectionAfterReplace(editable) {
+    if (isTextField(editable)) {
+      try {
+        const caret =
+          typeof editable.selectionEnd === "number"
+            ? editable.selectionEnd
+            : editable.value.length;
+        editable.setSelectionRange(caret, caret);
+      } catch {
+        /* unsupported input type */
+      }
+      return;
+    }
+
+    if (!isWritableRichEditable(editable)) return;
+
+    try {
+      const sel = window.getSelection();
+      if (!sel?.rangeCount) return;
+
+      const range = sel.getRangeAt(0).cloneRange();
+      range.collapse(false);
+
+      const container = range.endContainer;
+      if (container.nodeType === Node.TEXT_NODE && editable.contains(container)) {
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return;
+      }
+      if (
+        container.nodeType !== Node.ELEMENT_NODE ||
+        (container !== editable && !editable.contains(container))
+      ) {
+        return;
+      }
+
+      const childBefore =
+        range.endOffset > 0 ? container.childNodes[range.endOffset - 1] : null;
+      const childAfter = container.childNodes[range.endOffset] || null;
+      const textBefore = findEdgeTextNode(childBefore, true);
+      const textAfter = findEdgeTextNode(childAfter, false);
+      const target = textBefore || textAfter;
+      if (!target) return;
+
+      const caret = document.createRange();
+      const offset = textBefore ? target.textContent.length : 0;
+      caret.setStart(target, offset);
+      caret.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(caret);
+    } catch {
+      /* selection may have been invalidated by the host editor */
     }
   }
 
@@ -1298,14 +1398,14 @@
       }
     }
 
-    fireTextInputEvents(el, text);
+    fireTextInputEvent(el, text);
 
     // Verify: partial selection must become `text`, surroundings preserved
     if (el.value === expected) return true;
     if (el.value.slice(start, start + text.length) === text) return true;
     // Last resort force
     el.value = expected;
-    fireTextInputEvents(el, text);
+    fireTextInputEvent(el, text);
     return el.value === expected;
   }
 
@@ -1329,6 +1429,70 @@
     }
   }
 
+  /**
+   * Direct Range/textContent mutation is safe only for plain browser-managed
+   * contenteditables. Stateful editors keep a separate document model; changing
+   * their DOM behind that model creates visible but non-editable "ghost" text.
+   */
+  function canUseDirectRichFallback(root) {
+    if (!(root instanceof HTMLElement) || !root.isContentEditable) return false;
+    if (root.getAttribute("role") === "textbox") return false;
+
+    const frameworkMarkers = [
+      '[data-testid^="tweetTextarea_"]',
+      '[data-contents="true"]',
+      '[data-block="true"]',
+      "[data-offset-key]",
+      '[data-text="true"]',
+      '[data-lexical-editor="true"]',
+      '[data-slate-editor="true"]',
+      ".ProseMirror",
+    ].join(",");
+
+    return !root.matches(frameworkMarkers) && !root.querySelector(frameworkMarkers);
+  }
+
+  function isDraftRichEditor(root) {
+    return Boolean(
+      root instanceof HTMLElement &&
+        (root.classList.contains("public-DraftEditor-content") ||
+          root.matches('[data-testid^="tweetTextarea_"]') ||
+          root.querySelector('[data-contents="true"] [data-block="true"][data-offset-key]'))
+    );
+  }
+
+  /**
+   * Draft.js is a controlled editor backed by immutable EditorState. A direct
+   * DOM mutation can look correct while leaving its model stale. Its paste
+   * handler performs the replacement through DraftModifier and updates both.
+   */
+  function replaceThroughDraftPaste(root, text, original) {
+    const sel = window.getSelection();
+    const range = restoreRange();
+    if (!range || !sel || sel.isCollapsed) return false;
+
+    try {
+      const beforeSnap = snapshotRichText(root);
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text/plain", text);
+      const pasteEvent = new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        clipboardData,
+      });
+
+      root.dispatchEvent(pasteEvent);
+      const afterSnap = snapshotRichText(root);
+      return (
+        pasteEvent.defaultPrevented &&
+        richReplaceLooksGood(beforeSnap, afterSnap, original, text)
+      );
+    } catch {
+      return false;
+    }
+  }
+
   function replaceInRichEditable(editable, text, original) {
     const root =
       editable ||
@@ -1348,6 +1512,13 @@
 
     const beforeSnap = snapshotRichText(root);
     const sel = window.getSelection();
+    const allowDirectFallback = canUseDirectRichFallback(root);
+
+    // X uses Draft.js. Let Draft's own paste handler update its immutable
+    // EditorState; never follow a failed attempt with ghost-producing DOM edits.
+    if (isDraftRichEditor(root)) {
+      return replaceThroughDraftPaste(root, text, original);
+    }
 
     // --- Method A: insertText over restored selection (atomic replace) ---
     let range = restoreRange();
@@ -1356,12 +1527,12 @@
         const ok = document.execCommand("insertText", false, text);
         const afterSnap = snapshotRichText(root);
         if (ok && richReplaceLooksGood(beforeSnap, afterSnap, original, text)) {
-          dispatchRichInput(root, text);
+          // Chrome already emitted its trusted input transaction for execCommand.
+          // A second synthetic InputEvent can be replayed by some rich editors.
           return true;
         }
         // execCommand may return true yet do nothing useful — do not stop if snap unchanged wrong way
         if (ok && afterSnap !== beforeSnap && (!text || afterSnap.includes(text))) {
-          dispatchRichInput(root, text);
           return true;
         }
       } catch {
@@ -1370,7 +1541,7 @@
     }
 
     // --- Method B: Range API — replace as one unit; restore original if insert fails ---
-    range = restoreRange();
+    range = allowDirectFallback ? restoreRange() : null;
     if (range) {
       try {
         const selectedNow = range.toString();
@@ -1426,7 +1597,7 @@
     }
 
     // --- Method C: string rebuild for simple single-text-node editables ---
-    if (root && original && typeof root.innerText === "string") {
+    if (allowDirectFallback && root && original && typeof root.innerText === "string") {
       try {
         const full = root.innerText;
         const idx = full.indexOf(original);
@@ -1473,13 +1644,13 @@
       root.dispatchEvent(
         new InputEvent("input", {
           bubbles: true,
-          cancelable: true,
+          composed: true,
           inputType: "insertText",
           data: data,
         })
       );
     } catch {
-      root.dispatchEvent(new Event("input", { bubbles: true }));
+      root.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
     }
   }
   } // bootstrap

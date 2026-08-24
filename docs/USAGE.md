@@ -1,6 +1,6 @@
 # Usage guide
 
-**Current version: 1.1.5**
+**Current version: 1.1.6**
 
 ## Everyday flow
 
@@ -40,6 +40,8 @@
 | **Redo** | Runs the same check again with your **saved** popup model |
 | **Grok 4.5** | One-time recheck with Grok 4.5 when the fast model result is not good enough (does **not** change your saved model) |
 
+After a successful Replace, the editor selection is collapsed to a normal caret. Native editing shortcuts such as **Ctrl/Cmd+X** therefore continue to work normally (**1.1.6+**).
+
 **Replace works best in:**
 
 - `<input>` and `<textarea>`  
@@ -50,7 +52,7 @@
 - Heavily scripted editors (some social compose boxes, collaborative docs)  
 - Read-only page text (not an editor)
 
-If Replace fails, the extension may copy the result instead, or show an error — paste manually.
+X/Draft.js replacements use the editor's own paste handler so its internal state stays editable. If another stateful rich editor rejects its native replacement, the extension copies the result instead of forcing visible but non-editable DOM text; paste it manually.
 
 ### Partial selection example
 

@@ -3,12 +3,12 @@
 **Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, or **Translate to EN**, and get a structured result with automatic source-language detection.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.5-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.1.6-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
-**Current release: [1.1.5](CHANGELOG.md)** — Translate to EN, Redo / Grok 4.5, keyboard select-all, single-scrollbar result panel.
+**Current release: [1.1.6](CHANGELOG.md)** — editable X/Draft.js Replace, reliable native Cut, Translate to EN, Redo / Grok 4.5, keyboard select-all.
 
 ---
 
@@ -54,7 +54,7 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Confirm version **1.1.5** on the extension card
+4. Confirm version **1.1.6** on the extension card
 5. Open the extension popup → paste API key → **Save**  
 6. Optional: **Test connection**
 
@@ -76,7 +76,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.5**) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.6**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
 | [docs/USAGE.md](docs/USAGE.md) | Everyday use, proofreading, translation, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
@@ -91,7 +91,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.1.5)
+├── manifest.json          # Chrome MV3 manifest (v1.1.6)
 ├── background.js          # Service worker: xAI API, validation, prompts, PING
 ├── content/
 │   └── content.js         # Selection toolbar, result panel, replace, retries
@@ -145,6 +145,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
+| **1.1.6** | X/Draft.js Replace stays immediately editable; native Ctrl/Cmd+X remains reliable; unsafe duplicate/fallback editor mutations removed |
 | **1.1.5** | Translate to EN; safer Replace; whitespace preservation; validated structured output; per-tab/frame concurrency; regression tests |
 | **1.1.4** | Ctrl+A toolbar, Redo / Grok 4.5, single-scrollbar result panel, safer bootstrap |
 | **1.1.3** | Content-script bootstrap crash on some sites/ad frames |

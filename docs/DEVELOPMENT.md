@@ -1,6 +1,6 @@
 # Development
 
-**Current version: 1.1.5**
+**Current version: 1.1.6**
 
 ## Stack
 
@@ -30,6 +30,8 @@ node --test tests/background.test.js
 ### Content script logs
 
 Page DevTools → Console (content script context). Note: the UI lives in a **closed** Shadow DOM.
+
+The injected host exposes only a diagnostic `data-grammar-grok-version` attribute, which helps confirm that a refreshed tab is running the expected unpacked build.
 
 ### Popup
 
@@ -98,6 +100,10 @@ Keep these in sync when releasing:
 - [ ] **Copy** works  
 - [ ] **Replace full** field contents in `<textarea>`  
 - [ ] **Replace partial** selection mid-sentence (surrounding text preserved) — critical since **1.1.2**  
+- [ ] After Replace, make a new selection and press **Ctrl/Cmd+X** → text is cut, never pasted or replayed
+- [ ] Replaced rich-editor text remains immediately editable; failed stateful-editor replacement falls back to Copy, never “ghost” DOM
+- [ ] X/Draft.js caret after Replace is inside its text block, not on the outer `role="textbox"` element
+- [ ] X/Draft.js DOM text and immutable editor state stay synchronized after Replace and immediate typing
 - [ ] Contenteditable / `role="textbox"` (e.g. X compose) after **page refresh**  
 - [ ] After extension Reload, without page refresh: friendly context error + Refresh button (**1.1.1+**)  
 - [ ] Escape closes UI  
@@ -107,7 +113,7 @@ Keep these in sync when releasing:
 
 1. Bump `version` in `manifest.json`.  
 2. Update [CHANGELOG.md](../CHANGELOG.md), README badge, and docs “Current version” lines.  
-3. Commit, then optionally tag the release (for example, `git tag v1.1.5 && git push origin v1.1.5`).
+3. Commit, then optionally tag the release (for example, `git tag vX.Y.Z && git push origin vX.Y.Z`).
 4. Push `main` to GitHub: https://github.com/JW-0042/grammar-grok  
 
 The repository includes local Node regression tests but no automated CI yet; add GitHub Actions later if you want checks on every push.

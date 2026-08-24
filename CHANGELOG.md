@@ -5,6 +5,17 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.6] — 2026-08-24
+
+### Fixed
+
+- After a successful Replace, the extension now collapses the live selection and discards its stored Range, so the next native edit command starts from clean editor state.
+- Draft.js root-level carets (as used by X) are normalized into the nearest real text node immediately after Replace and once after editor reconciliation, keeping the inserted text editable without stealing focus back.
+- X/Draft.js replacement now goes through Draft's own paste handler, which updates its immutable `EditorState` together with the DOM. The synthetic event carries only the generated replacement and requires no clipboard permission.
+- Rich-text Replace no longer emits a duplicate synthetic `InputEvent` after Chrome's native `execCommand("insertText")` transaction. This fixes cases where **Ctrl/Cmd+X** replayed/pasted text instead of cutting the new selection.
+- Stateful rich-text editors no longer receive direct DOM fallback mutations that can create visible but non-editable “ghost” text. If their native replacement fails, the extension safely falls back to Copy.
+- Text inputs now receive one standards-aligned replacement `input` event instead of duplicate `input` plus premature `change` events.
+
 ## [1.1.5] — 2026-08-24
 
 ### Added
@@ -106,7 +117,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.1.5]: https://github.com/JW-0042/grammar-grok/compare/v1.1.4...HEAD
+[1.1.6]: https://github.com/JW-0042/grammar-grok/compare/f7ace21...HEAD
+[1.1.5]: https://github.com/JW-0042/grammar-grok/compare/v1.1.4...f7ace21
 [1.1.4]: https://github.com/JW-0042/grammar-grok/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/JW-0042/grammar-grok/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/JW-0042/grammar-grok/compare/v1.1.1...v1.1.2
