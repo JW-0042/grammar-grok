@@ -2,7 +2,7 @@
 
 Thanks for helping improve Grammar Grok. Contributions of all kinds are welcome: bug fixes, features, docs, translations, and UX polish.
 
-**Current version: 1.1.2** — see [CHANGELOG.md](CHANGELOG.md).
+**Current version: 1.1.5** — see [CHANGELOG.md](CHANGELOG.md).
 
 ## License & attribution
 
@@ -24,10 +24,11 @@ You need your own free/paid **xAI API key** from [console.x.ai](https://console.
 | Path | Role |
 |------|------|
 | `manifest.json` | Chrome MV3 manifest (version source of truth) |
-| `background.js` | Service worker: settings, xAI API, validation, `PING` |
-| `content/content.js` | Selection UI, messaging retries, replace logic |
+| `background.js` | Service worker: settings, grammar/style/translation prompts, xAI API, response validation, `PING` |
+| `content/content.js` | Selection toolbar, result UI, messaging retries, replace / redo logic |
 | `popup/` | Settings popup (API key, model) |
 | `icons/` | Extension icons |
+| `tests/` | Node regression tests for background behavior |
 | `docs/` | Installation, usage, architecture, development |
 | `CHANGELOG.md` | Release history |
 
@@ -35,7 +36,7 @@ You need your own free/paid **xAI API key** from [console.x.ai](https://console.
 
 - Keep the API key **only** in the background worker / `chrome.storage.local`.  
 - Prefer DOM APIs + `textContent` over `innerHTML` for untrusted model output.  
-- Validate messages and clamp string lengths for API responses.  
+- Validate messages, response shape, output size, and issue-field lengths.
 - Replace must preserve unselected text in the same field (see **1.1.2** behavior).  
 - Match existing style: small focused files, clear comments where non-obvious.  
 - Do not add analytics, remote code, or broad host permissions without discussion.  
@@ -43,12 +44,18 @@ You need your own free/paid **xAI API key** from [console.x.ai](https://console.
 
 ## Pull requests
 
-1. Create a branch: `fix/…`, `fix/…`, or `docs/…`.  
+1. Create a branch: `fix/…`, `feat/…`, or `docs/…`.
 2. Make focused commits with clear messages.  
 3. Open a PR against `main` describing:
    - What changed and why  
    - How you tested (browser, pages, modes)  
 4. Keep PRs reasonably small when possible.
+
+Before opening a PR, run:
+
+```bash
+node --test tests/background.test.js
+```
 
 ## Issues
 

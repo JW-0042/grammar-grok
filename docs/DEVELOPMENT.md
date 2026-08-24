@@ -44,6 +44,10 @@ Important knobs live at the top of `background.js`:
 | `DEFAULT_MODEL` | Fallback model id |
 | `ALLOWED_MODELS` | Models the user may select |
 | `MAX_CHARS` | Max selection length |
+| `MAX_TRANSLATED_CHARS` | Max accepted translated/corrected output length |
+| `MAX_RESPONSE_CHARS` | Max raw API response size |
+| `DEFAULT_MAX_TOKENS` | Grammar/style output-token budget |
+| `TRANSLATE_MAX_TOKENS` | Translation output-token budget |
 | `FETCH_TIMEOUT_MS` | API timeout |
 | `MIN_REQUEST_GAP_MS` | Spacing between checks |
 
@@ -103,10 +107,10 @@ Keep these in sync when releasing:
 
 1. Bump `version` in `manifest.json`.  
 2. Update [CHANGELOG.md](../CHANGELOG.md), README badge, and docs “Current version” lines.  
-3. Commit, optional tag: `git tag v1.1.2 && git push origin v1.1.2`.  
+3. Commit, then optionally tag the release (for example, `git tag v1.1.5 && git push origin v1.1.5`).
 4. Push `main` to GitHub: https://github.com/JW-0042/grammar-grok  
 
-There is no automated CI in the base project; add Actions later if you want lint checks.
+The repository includes local Node regression tests but no automated CI yet; add GitHub Actions later if you want checks on every push.
 
 ## Architecture reference
 

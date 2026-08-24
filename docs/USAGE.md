@@ -12,7 +12,7 @@
    - **Grammar + Style** — also improve clarity and flow  
    - **Translate to EN** — translate the selection into English
 4. Wait for the result panel (right side).  
-5. Read the language badge, summary, corrected text, and issue list.  
+5. Read the source-language badge, summary, corrected or translated text, and issue list.
 6. **Copy** the result, or **Replace** when the selection is in an editable field.
 
 ### Tips
@@ -35,8 +35,8 @@
 
 | Action | Behavior |
 |--------|----------|
-| **Copy** | Puts the full corrected text on the clipboard |
-| **Replace** | Swaps **only the text you selected** with the correction. Text before/after the selection in the same box stays put (**1.1.2+**) |
+| **Copy** | Puts the full corrected or translated text on the clipboard |
+| **Replace** | Swaps **only the text you selected** with the result. Text before/after the selection in the same box stays put (**1.1.2+**) |
 | **Redo** | Runs the same check again with your **saved** popup model |
 | **Grok 4.5** | One-time recheck with Grok 4.5 when the fast model result is not good enough (does **not** change your saved model) |
 
@@ -50,7 +50,7 @@
 - Heavily scripted editors (some social compose boxes, collaborative docs)  
 - Read-only page text (not an editor)
 
-If Replace fails, the extension may copy the correction instead, or show an error — paste manually.
+If Replace fails, the extension may copy the result instead, or show an error — paste manually.
 
 ### Partial selection example
 
@@ -72,7 +72,7 @@ Click the extension icon:
 ## Limits
 
 - Max selection length: **8000** characters (cost and latency).  
-- Checks only run when you click **Grammar** or **Grammar + Style** (nothing is sent while only selecting).
+- Requests only run when you choose **Grammar**, **Grammar + Style**, or **Translate to EN** (nothing is sent while only selecting).
 
 ## X / Twitter and other SPAs
 
@@ -82,7 +82,7 @@ Click the extension icon:
 
 ## Privacy in practice
 
-- Nothing is sent until you press **Grammar** or **Grammar + Style**.  
+- Nothing is sent until you choose **Grammar**, **Grammar + Style**, or **Translate to EN**.
 - Only the selected text (plus the mode system prompt) goes to xAI.  
 - No analytics; the project does not phone home to the authors.
 

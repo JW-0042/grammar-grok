@@ -23,6 +23,10 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 - Added Node regression coverage for translation whitespace, invalid JSON, long output, and concurrent tabs.
 
+### Docs
+
+- Updated the README and all guides to describe the complete 1.1.5 feature set, data handling, response validation, and regression-test workflow.
+
 ## [1.1.4] — 2026-08-06
 
 ### Added

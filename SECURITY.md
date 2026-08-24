@@ -25,7 +25,7 @@ We will try to respond within a reasonable time and coordinate a fix before publ
 | Data | Where it goes |
 |------|----------------|
 | xAI API key | Stored only in your browser (`chrome.storage.local`). Never sent anywhere except as `Authorization: Bearer` to `https://api.x.ai`. |
-| Selected text | Sent to `https://api.x.ai` **only when you click** Grammar or Grammar + Style. |
+| Selected text | Sent to `https://api.x.ai` **only when you choose** Grammar, Grammar + Style, or Translate to EN. |
 | Analytics | **None.** No telemetry, no third-party trackers. |
 
 ## What is **not** in this repository
@@ -43,10 +43,10 @@ We will try to respond within a reasonable time and coordinate a fix before publ
 - Host permission limited to `https://api.x.ai/*`  
 - Model names are allowlisted  
 - Message senders are checked against `chrome.runtime.id`  
-- Response fields are length-clamped before UI render  
+- Response size and shape are validated; issue fields are length-clamped and oversized corrected/translated output is rejected
 - Result UI uses DOM text nodes (no untrusted HTML injection of model output)  
 - Content scripts only on `http`/`https` (not `file://` or Chrome internal pages)  
-- Fetch timeouts, abort of overlapping checks, light client rate spacing  
+- Fetch timeouts, per-tab/frame abort of overlapping checks, light client rate spacing
 - Errors scrubbed of key-like patterns (`xai-…`, `Bearer …`)
 
 ## Scope

@@ -1,6 +1,6 @@
 # Grammar Grok
 
-**Proofread any webpage with Grok** — select text, pick **Grammar** or **Grammar + Style**, get corrections with automatic language detection (English, Czech, Slovak, and more).
+**Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, or **Translate to EN**, and get a structured result with automatic source-language detection.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.1.5-purple.svg)](manifest.json)
@@ -15,10 +15,10 @@
 ## Features
 
 - **Select-to-check** on almost any `http` / `https` page (including nested frames) — mouse or keyboard (**Ctrl+A**)  
-- **Translate to EN** — any selected language into English
-- Two modes:
+- Three actions:
   - **Grammar** — spelling, grammar, punctuation, diacritics  
   - **Grammar + Style** — also clarity, flow, and word choice  
+  - **Translate to EN** — translate any selected language into English
 - **Auto language detection** (EN, CS, SK, …)  
 - Toolbar **fixed at the top** of the viewport (does not cover your selection)  
 - Hides automatically when nothing is selected  
@@ -63,8 +63,8 @@ Full steps: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 ### 3. Use it
 
 1. Select text on a webpage (full field or **part** of a sentence)  
-2. Click **Grammar** or **Grammar + Style**  
-3. **Copy** or **Replace** the result  
+2. Click **Grammar**, **Grammar + Style**, or **Translate to EN**
+3. **Copy** or **Replace** the corrected or translated result
 
 Details: **[docs/USAGE.md](docs/USAGE.md)**
 
@@ -78,7 +78,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 |----------|----------|
 | [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.5**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
-| [docs/USAGE.md](docs/USAGE.md) | Everyday use, modes, partial Replace, SPAs |
+| [docs/USAGE.md](docs/USAGE.md) | Everyday use, proofreading, translation, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local dev, constants, test checklist, release |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
@@ -103,6 +103,8 @@ grammar-grok/
 │   ├── icon16.png
 │   ├── icon48.png
 │   └── icon128.png
+├── tests/
+│   └── background.test.js # Background regression tests
 ├── docs/                  # Full documentation
 ├── CHANGELOG.md
 ├── LICENSE                # MIT
@@ -120,7 +122,7 @@ No build step and no `npm` dependencies — load the folder as an unpacked exten
 | Topic | Behavior |
 |-------|----------|
 | API key | Stored in `chrome.storage.local` on **your** machine only |
-| Selected text | Sent to `https://api.x.ai` **only when you click** a check button |
+| Selected text | Sent to `https://api.x.ai` **only when you choose** Grammar, Grammar + Style, or Translate to EN |
 | Analytics | **None** |
 | Host access | Only `https://api.x.ai/*` |
 | Repo secrets | **No API keys or personal data** are shipped in this repository |
@@ -135,7 +137,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 |---------|---------|--------|
 | Model | `grok-4.5` | Change in popup; allowlisted models only |
 | Max selection | 8000 chars | Enforced in background + content script |
-| Modes | `grammar` / `style` | System prompts in `background.js` |
+| Actions | `grammar` / `style` / `translate` | System prompts in `background.js` |
 
 ---
 
@@ -143,7 +145,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
-| **1.1.5** | Translate to EN from the selection toolbar |
+| **1.1.5** | Translate to EN; safer Replace; whitespace preservation; validated structured output; per-tab/frame concurrency; regression tests |
 | **1.1.4** | Ctrl+A toolbar, Redo / Grok 4.5, single-scrollbar result panel, safer bootstrap |
 | **1.1.3** | Content-script bootstrap crash on some sites/ad frames |
 | **1.1.2** | Partial-selection Replace preserves surrounding text; safer contenteditable replace |
