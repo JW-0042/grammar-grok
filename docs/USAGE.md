@@ -1,6 +1,6 @@
 # Usage guide
 
-**Current version: 1.1.6**
+**Current version: 1.1.7**
 
 ## Everyday flow
 
@@ -68,7 +68,7 @@ Click the extension icon:
 | Setting | Description |
 |---------|-------------|
 | xAI API key | From [console.x.ai](https://console.x.ai). Stored only on this device. |
-| Model | Default `grok-4.5`. Other allowlisted Grok models available. |
+| Model | Empty-storage default `grok-4.5`. The popup marks **grok-4.20 non-reasoning** as recommended. Also `grok-4.7`, `grok-4.6`, `grok-4.3`, and grok-4.20 reasoning. Requests for grok-4.5, grok-4.6, and grok-4.7 use low reasoning effort. Grok 4.7 Fast is not available on the public API. |
 | Test connection | Small request to verify key + model. |
 
 ## Limits

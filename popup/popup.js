@@ -7,6 +7,8 @@ const statusEl = document.getElementById("status");
 
 const DEFAULT_MODEL = "grok-4.5";
 const ALLOWED_MODELS = new Set([
+  "grok-4.7",
+  "grok-4.6",
   "grok-4.5",
   "grok-4.3",
   "grok-4.20-0309-non-reasoning",

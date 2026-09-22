@@ -101,6 +101,56 @@ test("translate preserves selected boundary whitespace and requests JSON", async
   assert.equal(requestBody.messages[1].content, "ahoj");
   assert.equal(requestBody.max_tokens, 16384);
   assert.deepEqual(requestBody.response_format, { type: "json_object" });
+  assert.equal(requestBody.model, "grok-4.20-0309-non-reasoning");
+  assert.equal(requestBody.reasoning_effort, undefined);
+});
+
+test("grok-4.5, grok-4.6, and grok-4.7 request low reasoning effort", async () => {
+  const seen = [];
+  const { listener } = loadBackground(async (_url, options) => {
+    seen.push(JSON.parse(options.body));
+    return validModelResponse("fixed");
+  });
+
+  for (const model of ["grok-4.5", "grok-4.6", "grok-4.7"]) {
+    const result = await send(listener, {
+      type: "CHECK_TEXT",
+      mode: "grammar",
+      text: "ahoj",
+      model,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.data.model, model);
+  }
+
+  assert.deepEqual(
+    seen.map((body) => ({ model: body.model, reasoning_effort: body.reasoning_effort })),
+    [
+      { model: "grok-4.5", reasoning_effort: "low" },
+      { model: "grok-4.6", reasoning_effort: "low" },
+      { model: "grok-4.7", reasoning_effort: "low" },
+    ]
+  );
+});
+
+test("grok-4.7-fast is not sent to the API", async () => {
+  let requestBody = null;
+  const { listener } = loadBackground(async (_url, options) => {
+    requestBody = JSON.parse(options.body);
+    return validModelResponse("fixed");
+  });
+
+  const result = await send(listener, {
+    type: "CHECK_TEXT",
+    mode: "grammar",
+    text: "ahoj",
+    model: "grok-4.7-fast",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.data.model, "grok-4.5");
+  assert.equal(requestBody.model, "grok-4.5");
+  assert.equal(requestBody.reasoning_effort, "low");
 });
 
 test("invalid model JSON is returned as an error, not Already English data", async () => {

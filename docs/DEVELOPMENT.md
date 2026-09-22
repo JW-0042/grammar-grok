@@ -1,6 +1,6 @@
 # Development
 
-**Current version: 1.1.6**
+**Current version: 1.1.7**
 
 ## Stack
 
@@ -63,6 +63,8 @@ Content script (`content/content.js`):
 | `QUALITY_MODEL` | One-shot quality recheck target (`grok-4.5`) |
 
 When adding a model, update **both** `background.js` and `popup/popup.js` / `popup.html` allowlists.
+
+`grok-4.5`, `grok-4.6`, and `grok-4.7` are public chat models. Requests for those three set `reasoning_effort` to `low`, because their API default is `high` and reasoning cannot be disabled. The popup text marks `grok-4.20-0309-non-reasoning` as recommended; keep `DEFAULT_MODEL` as `grok-4.5` unless that fallback is changed on purpose. Do not add Grok 4.7 Fast: xAI documents it as Cursor and Grok Build only, not `api.x.ai`.
 
 ## Versioning
 

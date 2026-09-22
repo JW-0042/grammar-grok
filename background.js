@@ -17,11 +17,19 @@ const MIN_REQUEST_GAP_MS = 400;
 
 /** Models users may select (blocks arbitrary stored strings). */
 const ALLOWED_MODELS = new Set([
+  "grok-4.7",
+  "grok-4.6",
   "grok-4.5",
   "grok-4.3",
   "grok-4.20-0309-non-reasoning",
   "grok-4.20-0309-reasoning",
 ]);
+
+/**
+ * These models default to high reasoning and cannot disable it.
+ * Low effort keeps a grammar check inside the 60s request timeout.
+ */
+const LOW_REASONING_MODELS = new Set(["grok-4.5", "grok-4.6", "grok-4.7"]);
 
 const SHARED_JSON_RULES = `
 You MUST respond with a single JSON object only (no markdown fences, no commentary).
@@ -190,6 +198,10 @@ function sanitizeModel(model) {
   const m = String(model || "").trim();
   if (ALLOWED_MODELS.has(m)) return m;
   return DEFAULT_MODEL;
+}
+
+function reasoningEffortFor(model) {
+  return LOW_REASONING_MODELS.has(model) ? "low" : null;
 }
 
 function looksLikeApiKey(key) {
@@ -367,6 +379,10 @@ async function callGrok({
   };
   if (jsonMode) {
     requestBody.response_format = { type: "json_object" };
+  }
+  const reasoningEffort = reasoningEffortFor(requestBody.model);
+  if (reasoningEffort) {
+    requestBody.reasoning_effort = reasoningEffort;
   }
 
   let res;

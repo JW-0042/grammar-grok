@@ -3,12 +3,12 @@
 **Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, or **Translate to EN**, and get a structured result with automatic source-language detection.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.6-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.1.7-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
-**Current release: [1.1.6](CHANGELOG.md)** — editable X/Draft.js Replace, reliable native Cut, Translate to EN, Redo / Grok 4.5, keyboard select-all.
+**Current release: [1.1.7](CHANGELOG.md)** — selectable grok-4.7 and grok-4.6, low reasoning effort for grok-4.5 / 4.6 / 4.7, and **grok-4.20 non-reasoning** marked recommended. Grok 4.7 Fast is not on the public API.
 
 ---
 
@@ -20,6 +20,7 @@
   - **Grammar + Style** — also clarity, flow, and word choice  
   - **Translate to EN** — translate any selected language into English
 - **Auto language detection** (EN, CS, SK, …)  
+- Popup models: **grok-4.7**, **grok-4.6**, grok-4.5, grok-4.3, and both grok-4.20 variants. **grok-4.20 non-reasoning** is marked recommended. Grok 4.7 Fast is not offered (**1.1.7**)  
 - Toolbar **fixed at the top** of the viewport (does not cover your selection)  
 - Hides automatically when nothing is selected  
 - **Copy** or **Replace** — Replace updates **only the selected span**; surrounding text stays (**1.1.2+**)  
@@ -54,7 +55,7 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Confirm version **1.1.6** on the extension card
+4. Confirm version **1.1.7** on the extension card
 5. Open the extension popup → paste API key → **Save**  
 6. Optional: **Test connection**
 
@@ -76,7 +77,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.6**) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.7**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
 | [docs/USAGE.md](docs/USAGE.md) | Everyday use, proofreading, translation, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
@@ -91,7 +92,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.1.6)
+├── manifest.json          # Chrome MV3 manifest (v1.1.7)
 ├── background.js          # Service worker: xAI API, validation, prompts, PING
 ├── content/
 │   └── content.js         # Selection toolbar, result panel, replace, retries
@@ -135,7 +136,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Setting | Default | Notes |
 |---------|---------|--------|
-| Model | `grok-4.5` | Change in popup; allowlisted models only |
+| Model | `grok-4.5` | Empty-storage default. Popup marks **grok-4.20 non-reasoning** as recommended. Also grok-4.7, grok-4.6, grok-4.3, and grok-4.20 reasoning. Not Grok 4.7 Fast. grok-4.5, grok-4.6, and grok-4.7 send `reasoning_effort: low` |
 | Max selection | 8000 chars | Enforced in background + content script |
 | Actions | `grammar` / `style` / `translate` | System prompts in `background.js` |
 
@@ -145,6 +146,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
+| **1.1.7** | Selectable grok-4.7 and grok-4.6. grok-4.5, grok-4.6, and grok-4.7 use low reasoning effort, including the one-shot Grok 4.5 button. Popup recommends grok-4.20 non-reasoning. Grok 4.7 Fast is not on the public API |
 | **1.1.6** | X/Draft.js Replace stays immediately editable; native Ctrl/Cmd+X remains reliable; unsafe duplicate/fallback editor mutations removed |
 | **1.1.5** | Translate to EN; safer Replace; whitespace preservation; validated structured output; per-tab/frame concurrency; regression tests |
 | **1.1.4** | Ctrl+A toolbar, Redo / Grok 4.5, single-scrollbar result panel, safer bootstrap |

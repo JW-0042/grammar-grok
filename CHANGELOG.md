@@ -5,6 +5,18 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.7] — 2026-09-22
+
+### Added
+
+- Popup model choices **grok-4.7** and **grok-4.6**. Both are public xAI chat models. Requests for **grok-4.5**, **grok-4.6**, and **grok-4.7** set `reasoning_effort` to `low`, because their API default is `high` and reasoning cannot be turned off. The one-shot Grok 4.5 button uses the same setting.
+
+### Notes
+
+- **Grok 4.7 Fast** is intentionally absent. xAI documents it as the same Grok 4.7 model on faster infrastructure, available only through Cursor and Grok Build, not on `api.x.ai`.
+- The saved model and the one-shot **Grok 4.5** button are unchanged.
+- The popup marks **grok-4.20 non-reasoning** as recommended. The empty-storage default remains `grok-4.5`.
+
 ## [1.1.6] — 2026-08-24
 
 ### Fixed
@@ -117,7 +129,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.1.6]: https://github.com/JW-0042/grammar-grok/compare/f7ace21...HEAD
+[1.1.7]: https://github.com/JW-0042/grammar-grok/compare/af7ea43...HEAD
+[1.1.6]: https://github.com/JW-0042/grammar-grok/compare/f7ace21...af7ea43
 [1.1.5]: https://github.com/JW-0042/grammar-grok/compare/v1.1.4...f7ace21
 [1.1.4]: https://github.com/JW-0042/grammar-grok/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/JW-0042/grammar-grok/compare/v1.1.2...v1.1.3

@@ -1,6 +1,6 @@
 # Architecture
 
-**Current version: 1.1.6**
+**Current version: 1.1.7**
 
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
@@ -52,6 +52,8 @@ The content script **never** receives or stores the API key. Pages you visit can
 Optional: result-panel **Redo** re-sends the same text/mode. **Grok 4.5** sends the same request with `{ model: "grok-4.5" }` for one request only (saved popup model is unchanged). Background still allowlists the override.
 
 Checks use xAI JSON mode. Leading/trailing selection whitespace is kept outside the model request and restored around the result. Active requests are tracked per tab/frame, so a new check only cancels an older request from the same content-script scope.
+
+`grok-4.5`, `grok-4.6`, and `grok-4.7` requests set `reasoning_effort` to `low` so the default high reasoning pass does not blow the 60-second timeout. This includes the one-shot Grok 4.5 button. The popup labels **grok-4.20 non-reasoning** as recommended; that label does not change the saved model, and an empty storage value still resolves to `grok-4.5`. Grok 4.7 Fast is not allowlisted: xAI offers it only through Cursor and Grok Build.
 
 ### Messaging resilience (1.1.1+)
 
@@ -122,7 +124,7 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.6**) |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.7**) |
 | `background.js` | Grammar/style/translation prompts, fetch, response validation, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
 | `content/content.js` | Selection UX (mouse + keyboard), three-action toolbar, Shadow DOM UI, messaging retries, replace / redo logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |
