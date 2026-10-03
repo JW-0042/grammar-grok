@@ -170,6 +170,12 @@ Contributions are welcome — code, docs, translations, UX.
 
 ---
 
+## Author
+
+Built by [Jozef Walterstein](https://walterstein.eu/en/), a consultant for AI, automation and security. More tools and free vibe coding courses are on [walterstein.eu](https://walterstein.eu/en/).
+
+---
+
 ## License
 
 [MIT](LICENSE) © 2026 [JW-0042](https://github.com/JW-0042)
