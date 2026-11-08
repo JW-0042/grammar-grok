@@ -3,12 +3,12 @@
 **Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, or **Translate to EN**, and get a structured result with automatic source-language detection.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.7-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.1.8-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
-**Current release: [1.1.7](CHANGELOG.md)** — selectable grok-4.7 and grok-4.6, low reasoning effort for grok-4.5 / 4.6 / 4.7, and **grok-4.20 non-reasoning** marked recommended. Grok 4.7 Fast is not on the public API.
+**Current version: [1.1.8](CHANGELOG.md)** — Grammar and Grammar + Style use natural everyday wording and avoid stock AI phrasing, em dashes, and semicolons in prose.
 
 ---
 
@@ -16,10 +16,11 @@
 
 - **Select-to-check** on almost any `http` / `https` page (including nested frames) — mouse or keyboard (**Ctrl+A**)  
 - Three actions:
-  - **Grammar** — spelling, grammar, punctuation, diacritics  
+  - **Grammar** — spelling, grammar, punctuation, diacritics, and minimal edits for the natural-wording rules
   - **Grammar + Style** — also clarity, flow, and word choice  
   - **Translate to EN** — translate any selected language into English
 - **Auto language detection** (EN, CS, SK, …)  
+- Both correction modes avoid stock AI phrasing and use common everyday words, retaining necessary terminology. Em dashes and semicolons in prose are replaced with suitable punctuation; literal code, URLs, and verbatim quotations are preserved (**1.1.8**).
 - Popup models: **grok-4.7**, **grok-4.6**, grok-4.5, grok-4.3, and both grok-4.20 variants. **grok-4.20 non-reasoning** is marked recommended. Grok 4.7 Fast is not offered (**1.1.7**)  
 - Toolbar **fixed at the top** of the viewport (does not cover your selection)  
 - Hides automatically when nothing is selected  
@@ -55,7 +56,7 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Confirm version **1.1.7** on the extension card
+4. Confirm version **1.1.8** on the extension card
 5. Open the extension popup → paste API key → **Save**  
 6. Optional: **Test connection**
 
@@ -77,7 +78,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.7**) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.8**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
 | [docs/USAGE.md](docs/USAGE.md) | Everyday use, proofreading, translation, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
@@ -92,7 +93,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.1.7)
+├── manifest.json          # Chrome MV3 manifest (v1.1.8)
 ├── background.js          # Service worker: xAI API, validation, prompts, PING
 ├── content/
 │   └── content.js         # Selection toolbar, result panel, replace, retries
@@ -146,6 +147,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
+| **1.1.8** | Natural everyday wording in both correction modes, no stock AI phrasing, em dashes, or semicolons in prose; necessary terminology and literal content preserved |
 | **1.1.7** | Selectable grok-4.7 and grok-4.6. grok-4.5, grok-4.6, and grok-4.7 use low reasoning effort, including the one-shot Grok 4.5 button. Popup recommends grok-4.20 non-reasoning. Grok 4.7 Fast is not on the public API |
 | **1.1.6** | X/Draft.js Replace stays immediately editable; native Ctrl/Cmd+X remains reliable; unsafe duplicate/fallback editor mutations removed |
 | **1.1.5** | Translate to EN; safer Replace; whitespace preservation; validated structured output; per-tab/frame concurrency; regression tests |

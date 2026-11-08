@@ -54,7 +54,11 @@ Rules:
 - Auto-detect the language of the user text. Never translate to another language.
 - For Czech and Slovak: fix missing diacritics and use natural local usage.
 - Preserve meaning, formatting intent (line breaks), and proper names / brand names.
-- If the text is already correct, set hasChanges to false, corrected = original text, issues = [].
+- Write naturally in the author's language. Avoid stereotypical AI wording: stock introductions or conclusions, filler, inflated phrasing, repetitive transitions, and unnecessary formality.
+- Use common everyday, conversational words. Keep specialist or formal terms only when the subject, precise meaning, or required register genuinely needs them. Do not force slang or replace necessary terminology, proper names, or brand names.
+- In corrected prose, do not use em dashes (U+2014) or semicolons. Replace existing ones with grammatically appropriate commas, periods, parentheses, or a small sentence adjustment while preserving meaning. Preserve literal code, URLs, and verbatim quotations where changing punctuation would alter their content.
+- These wording and punctuation requirements apply to both GRAMMAR ONLY and GRAMMAR + STYLISTICS. In GRAMMAR ONLY, make only the minimal edits needed to meet them and correct errors; otherwise preserve the author's voice and sentence structure.
+- If the text already satisfies all correction and wording rules, set hasChanges to false, corrected = original text, issues = [].
 - Keep corrected as the complete text ready to replace the selection.
 - Keep issues concise; at most ${MAX_ISSUES} items.
 `.trim();
@@ -64,7 +68,7 @@ const PROMPTS = {
 
 Task: GRAMMAR ONLY.
 Fix only clear errors: spelling, grammar, morphology, agreement, punctuation, diacritics.
-Do NOT rewrite for style, tone, or word choice. Keep the author's voice and sentence structure as much as possible.
+Do NOT otherwise rewrite for style, tone, or word choice beyond the shared wording and punctuation requirements below. Keep the author's voice and sentence structure as much as possible.
 
 ${SHARED_JSON_RULES}`,
 

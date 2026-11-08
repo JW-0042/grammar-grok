@@ -5,6 +5,14 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.8] — 2026-10-04
+
+### Changed
+
+- Grammar and Grammar + Style now request natural everyday wording without stock AI phrases, filler, or unnecessary formality. Necessary specialist terminology and the author's meaning are preserved.
+- Both correction modes replace em dashes and semicolons in prose with suitable punctuation or minimal sentence adjustments. Literal code, URLs, and verbatim quotations are preserved.
+- Grammar applies these rules with minimal edits. Translate to EN keeps its existing rules.
+
 ## [1.1.7] — 2026-09-22
 
 ### Added
@@ -129,7 +137,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.1.7]: https://github.com/JW-0042/grammar-grok/compare/af7ea43...HEAD
+[1.1.8]: https://github.com/JW-0042/grammar-grok/compare/44b9d18...HEAD
+[1.1.7]: https://github.com/JW-0042/grammar-grok/compare/af7ea43...44b9d18
 [1.1.6]: https://github.com/JW-0042/grammar-grok/compare/f7ace21...af7ea43
 [1.1.5]: https://github.com/JW-0042/grammar-grok/compare/v1.1.4...f7ace21
 [1.1.4]: https://github.com/JW-0042/grammar-grok/compare/v1.1.3...v1.1.4

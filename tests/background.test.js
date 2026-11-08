@@ -239,3 +239,29 @@ test("a check in another tab does not abort the first tab", async () => {
   assert.equal(firstResult.ok, true);
   assert.equal(secondResult.ok, true);
 });
+
+test("correction prompts require natural wording without em dashes or semicolons", async () => {
+  const prompts = {};
+  const { listener } = loadBackground(async (_url, options) => {
+    const body = JSON.parse(options.body);
+    prompts[body.messages[1].content] = body.messages[0].content;
+    return validModelResponse("hello");
+  });
+
+  for (const mode of ["grammar", "style", "translate"]) {
+    const result = await send(listener, { type: "CHECK_TEXT", mode, text: mode });
+    assert.equal(result.ok, true);
+  }
+
+  for (const mode of ["grammar", "style"]) {
+    const prompt = prompts[mode];
+    assert.match(prompt, /Avoid stereotypical AI wording/);
+    assert.match(prompt, /common everyday, conversational words/);
+    assert.match(prompt, /do not use em dashes \(U\+2014\) or semicolons/);
+    assert.match(prompt, /Preserve literal code, URLs, and verbatim quotations/);
+    assert.match(prompt, /already satisfies all correction and wording rules/);
+  }
+  assert.match(prompts.grammar, /GRAMMAR ONLY/);
+  assert.match(prompts.grammar, /beyond the shared wording and punctuation requirements/);
+  assert.doesNotMatch(prompts.translate, /em dashes|stereotypical AI wording/);
+});

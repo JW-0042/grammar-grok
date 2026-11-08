@@ -1,6 +1,6 @@
 # Usage guide
 
-**Current version: 1.1.7**
+**Current version: 1.1.8**
 
 ## Everyday flow
 
@@ -8,7 +8,7 @@
 2. **Select** the text you want to check (at least 3 non-space characters).  
    You may select the **whole field** or only **part** of a sentence — with the mouse **or** keyboard (**Ctrl+A / Cmd+A**, Shift+arrows, etc.).  
 3. A compact bar appears **fixed at the top center** of the window:
-   - **Grammar** — fix mistakes only; keep your voice  
+   - **Grammar** — fix mistakes and apply the wording rules below with minimal edits; keep your voice
    - **Grammar + Style** — also improve clarity and flow  
    - **Translate to EN** — translate the selection into English
 4. Wait for the result panel (right side).  
@@ -27,9 +27,13 @@
 
 | Mode | Use when |
 |------|----------|
-| Grammar | You want correctness only (spelling, agreement, punctuation, diacritics) |
+| Grammar | You want correctness and minimal edits for the wording rules below |
 | Grammar + Style | You also want smoother, clearer wording without changing meaning |
 | Translate to EN | The selection is in another language and you want a fluent English version |
+
+Both correction modes use common everyday words and avoid stock AI phrasing, filler, and unnecessary formality. Necessary specialist or formal terms stay when the subject, precise meaning, or required register needs them.
+
+Em dashes and semicolons in prose are replaced with suitable commas, periods, parentheses, or small sentence adjustments. Literal code, URLs, and verbatim quotations are preserved. Grammar makes only the minimal changes required; Grammar + Style may also improve clarity and flow. Translate to EN keeps its existing translation rules.
 
 ## Copy vs Replace
 
