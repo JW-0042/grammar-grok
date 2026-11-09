@@ -4,6 +4,7 @@ const saveBtn = document.getElementById("save");
 const testBtn = document.getElementById("test");
 const toggleKeyBtn = document.getElementById("toggleKey");
 const statusEl = document.getElementById("status");
+const typeLikeHumanEl = document.getElementById("typeLikeHuman");
 
 const DEFAULT_MODEL = "grok-4.5";
 const ALLOWED_MODELS = new Set([
@@ -36,10 +37,19 @@ async function load() {
   const data = await chrome.storage.local.get({
     apiKey: "",
     model: DEFAULT_MODEL,
+    typeLikeHuman: true,
   });
   apiKeyEl.value = data.apiKey || "";
   modelEl.value = sanitizeModel(data.model);
+  typeLikeHumanEl.checked = data.typeLikeHuman !== false;
 }
+
+// Saved immediately so Replace picks it up without pressing Save.
+typeLikeHumanEl.addEventListener("change", async () => {
+  const on = typeLikeHumanEl.checked;
+  await chrome.storage.local.set({ typeLikeHuman: on });
+  setStatus(on ? "Replace types like a human." : "Replace inserts the text at once.", "ok");
+});
 
 toggleKeyBtn.addEventListener("click", () => {
   const show = apiKeyEl.type === "password";

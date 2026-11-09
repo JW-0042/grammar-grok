@@ -5,6 +5,18 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] — 2026-11-09
+
+### Added
+
+- **Replace by typing like a human** (on by default, switch in the popup). Replace selects the original text again and types the correction over it with real key events through `chrome.debugger`, with human-like pauses between keys, so the site sees normal typing instead of a paste. Enter creates new lines, emoji are inserted like keyboard input. Clicking anywhere on the page or pressing Escape stops typing. Ctrl+Z undoes it.
+- While typing, Chrome shows its "started debugging this browser" bar. Clicking Cancel there also stops typing.
+- When typing is off or the field cannot be selected again, Replace falls back to the previous one-step replacement.
+
+### Changed
+
+- New required `debugger` permission (Chrome does not allow it as an optional permission). The extension only attaches to the current tab while it types a Replace, and only uses the `Input` domain.
+
 ## [1.2.0] — 2026-11-09
 
 ### Added
@@ -157,7 +169,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.2.0]: https://github.com/JW-0042/grammar-grok/compare/v1.1.8...HEAD
+[1.3.0]: https://github.com/JW-0042/grammar-grok/compare/68bc477...HEAD
+[1.2.0]: https://github.com/JW-0042/grammar-grok/compare/v1.1.8...68bc477
 [1.1.8]: https://github.com/JW-0042/grammar-grok/compare/44b9d18...v1.1.8
 [1.1.7]: https://github.com/JW-0042/grammar-grok/compare/af7ea43...44b9d18
 [1.1.6]: https://github.com/JW-0042/grammar-grok/compare/f7ace21...af7ea43

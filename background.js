@@ -155,6 +155,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Replace by typing: only content scripts in a tab, and only into that tab.
+  if (message.type === "TYPE_TEXT" || message.type === "TYPE_CANCEL") {
+    if (typeof sender?.tab?.id !== "number") {
+      sendResponse({ ok: false, error: "Unauthorized." });
+      return false;
+    }
+    if (message.type === "TYPE_CANCEL") {
+      sendResponse(cancelTyping(sender));
+      return false;
+    }
+    handleTypeText(message, sender)
+      .then(sendResponse)
+      .catch((err) => {
+        sendResponse({ ok: false, error: safeErrorMessage(err) });
+      });
+    return true;
+  }
+
   if (message.type === "TEST_KEY") {
     // Only the popup may spend a request on a key test, never a page's content script.
     if (!isExtensionPageSender(sender)) {
@@ -1022,4 +1040,147 @@ function applyPunctuationFallback(text, language = "") {
     if (out !== before) fixed.push("semicolons replaced");
   }
   return { text: out, fixed };
+}
+
+/* ------------------------------------------------------------------------- */
+/* Replace by typing: real key events through chrome.debugger                 */
+/* ------------------------------------------------------------------------- */
+
+/** One typing job per tab. @type {Map<number, { cancelled: boolean, detached: boolean }>} */
+const activeTyping = new Map();
+
+/**
+ * Type `message.text` into the focused element of the sender's tab with real
+ * (trusted) key events and human-like timing. The content script has already
+ * focused the field and selected the original text, so the first key replaces it.
+ * @returns {Promise<{ ok: boolean, disabled?: boolean, cancelled?: boolean, typed?: number, total?: number, error?: string }>}
+ */
+async function handleTypeText(message, sender) {
+  const tabId = sender?.tab?.id;
+  if (typeof tabId !== "number") {
+    return { ok: false, error: "Unauthorized." };
+  }
+  const text = typeof message.text === "string" ? message.text.replace(/\r\n?/g, "\n") : "";
+  if (!text) return { ok: false, error: "Nothing to type." };
+  if (text.length > MAX_TRANSLATED_CHARS) {
+    return { ok: false, error: "The text is too long to type." };
+  }
+
+  const { typeLikeHuman } = await chrome.storage.local.get({ typeLikeHuman: true });
+  if (typeLikeHuman === false || typeof chrome.debugger?.attach !== "function") {
+    return { ok: false, disabled: true };
+  }
+  if (activeTyping.has(tabId)) {
+    return { ok: false, error: "Already typing in this tab." };
+  }
+
+  const job = { cancelled: false, detached: false };
+  activeTyping.set(tabId, job);
+  const target = { tabId };
+  const onDetach = (source) => {
+    // The user clicked "Cancel" on Chrome's debugging bar, or the tab closed.
+    if (source?.tabId === tabId) {
+      job.detached = true;
+      job.cancelled = true;
+    }
+  };
+  chrome.debugger.onDetach?.addListener(onDetach);
+
+  const chars = Array.from(text);
+  let typed = 0;
+  try {
+    try {
+      await chrome.debugger.attach(target, DEBUGGER_PROTOCOL_VERSION);
+    } catch (err) {
+      return {
+        ok: false,
+        error: `Could not start typing (${safeErrorMessage(err)}). Close DevTools or other debugging extensions, or turn off typing in the popup.`,
+      };
+    }
+
+    for (let i = 0; i < chars.length; i += 1) {
+      if (job.cancelled) break;
+      await typeCharacter(target, chars[i]);
+      typed += 1;
+      if (i < chars.length - 1) await sleep(humanDelay(chars[i], chars[i + 1]));
+    }
+  } catch (err) {
+    if (!job.cancelled) {
+      return { ok: false, typed, total: chars.length, error: safeErrorMessage(err) };
+    }
+  } finally {
+    chrome.debugger.onDetach?.removeListener(onDetach);
+    activeTyping.delete(tabId);
+    if (!job.detached) {
+      try {
+        await chrome.debugger.detach(target);
+      } catch {
+        /* already detached */
+      }
+    }
+  }
+
+  if (typed < chars.length) {
+    return { ok: false, cancelled: true, typed, total: chars.length };
+  }
+  return { ok: true, typed, total: chars.length };
+}
+
+function cancelTyping(sender) {
+  const job = activeTyping.get(sender?.tab?.id);
+  if (job) job.cancelled = true;
+  return { ok: true, cancelled: Boolean(job) };
+}
+
+const DEBUGGER_PROTOCOL_VERSION = "1.3";
+const SHIFT_MODIFIER = 8;
+
+/** Key description for Input.dispatchKeyEvent (US-layout codes for ASCII letters/digits). */
+function keyEventFor(ch) {
+  if (ch === "\n") {
+    return { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, text: "\r", unmodifiedText: "\r" };
+  }
+  if (ch === " ") {
+    return { key: " ", code: "Space", windowsVirtualKeyCode: 32, text: " ", unmodifiedText: " " };
+  }
+  if (/^[a-zA-Z]$/.test(ch)) {
+    const upper = ch.toUpperCase();
+    return {
+      key: ch,
+      code: `Key${upper}`,
+      windowsVirtualKeyCode: upper.charCodeAt(0),
+      text: ch,
+      unmodifiedText: ch.toLowerCase(),
+      modifiers: ch === upper ? SHIFT_MODIFIER : 0,
+    };
+  }
+  if (/^[0-9]$/.test(ch)) {
+    return { key: ch, code: `Digit${ch}`, windowsVirtualKeyCode: ch.charCodeAt(0), text: ch, unmodifiedText: ch };
+  }
+  // Diacritics and punctuation: the character itself, as a keyboard layout would produce it.
+  return { key: ch, text: ch, unmodifiedText: ch };
+}
+
+async function typeCharacter(target, ch) {
+  // Emoji and other characters outside the BMP, and tabs (Tab would move focus).
+  if (ch.length > 1 || ch === "\t") {
+    await chrome.debugger.sendCommand(target, "Input.insertText", { text: ch });
+    return;
+  }
+  const event = keyEventFor(ch);
+  await chrome.debugger.sendCommand(target, "Input.dispatchKeyEvent", { type: "keyDown", ...event });
+  const { text: _text, unmodifiedText: _unmodified, ...keyUp } = event;
+  await chrome.debugger.sendCommand(target, "Input.dispatchKeyEvent", { type: "keyUp", ...keyUp });
+}
+
+/** Pause after `ch` before `next`: a fast typist with small irregular pauses. */
+function humanDelay(ch, next) {
+  const between = (min, max) => min + Math.random() * (max - min);
+  let ms = between(35, 95);
+  if (ch === " ") ms += between(10, 70);
+  if (/[.!?]/.test(ch) && (next === " " || next === "\n")) ms += between(150, 400);
+  else if (/[,;:]/.test(ch)) ms += between(60, 180);
+  if (ch === "\n") ms += between(200, 500);
+  if (Math.random() < 0.02) ms += between(250, 700);
+  return Math.round(ms);
 }

@@ -1,6 +1,6 @@
 # Security Policy
 
-**Project version:** documented releases through **1.2.0** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
+**Project version:** documented releases through **1.3.0** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
 
 ## Reporting a vulnerability
 
@@ -44,6 +44,7 @@ We will try to respond within a reasonable time and coordinate a fix before publ
 - Toolbar and panel actions require trusted (real user) clicks, so page scripts cannot trigger API requests  
 - `TEST_KEY` is accepted only from the popup; streaming ports only from this extension's content scripts in a tab  
 - Host permission limited to `https://api.x.ai/*`  
+- `debugger` permission (required, Chrome does not allow it as optional): attached only to the sender's own tab, only for a Replace started by a real click, only while typing, only the `Input` domain (`Input.dispatchKeyEvent`, `Input.insertText`), and only when the popup switch is on. Detached in a `finally` block; Chrome's debugging bar stays visible meanwhile and its Cancel stops typing  
 - Model names are allowlisted  
 - Message senders are checked against `chrome.runtime.id`  
 - Response size and shape are validated; issue fields are length-clamped and oversized corrected/translated output is rejected

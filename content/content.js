@@ -301,6 +301,8 @@
   /** Streaming port of the running check; disconnecting it aborts the API request. */
   /** @type {{ port: chrome.runtime.Port, cancel: () => void } | null} */
   let activePort = null;
+  /** True while the background types the correction with real key events. */
+  let typing = false;
 
   const host = document.createElement("div");
   host.id = HOST_ID;
@@ -670,7 +672,7 @@
   }
 
   function showToolbar() {
-    if (loading) return;
+    if (loading || typing) return;
     if (!isRuntimeAlive()) {
       hideToolbar();
       return;
@@ -784,6 +786,7 @@
   document.addEventListener(
     "mousedown",
     (e) => {
+      if (typing && e.isTrusted) stopTyping();
       if (isEventInHost(e)) return;
       if (!toolbar.hidden && !loading) hideToolbar();
     },
@@ -817,6 +820,13 @@
     "keydown",
     (e) => {
       if (e.key === "Escape") {
+        if (typing) {
+          // Keep Escape away from the page (X would close the reply composer).
+          e.preventDefault();
+          e.stopPropagation();
+          stopTyping();
+          return;
+        }
         hideToolbar();
         hidePanel();
       }
@@ -1303,7 +1313,20 @@
     }
 
     if (action === "replace") {
+      if (typing) return;
       const editable = selectionState.editable;
+
+      // Preferred: type the correction with real key events (see popup setting).
+      const typedResult = await replaceByTyping(corrected);
+      if (typedResult === "typed") {
+        selectionState = emptySelection();
+        hideToolbar();
+        showToast("Typed");
+        setTimeout(hidePanel, 700);
+        return;
+      }
+      if (typedResult !== "unavailable") return;
+
       const ok = replaceSelection(corrected);
       if (ok) {
         settleSelectionAfterReplace(editable);
@@ -1349,16 +1372,107 @@
     }
   });
 
-  function showToast(msg, isErr) {
+  /** @param {number} [durationMs] 0 keeps the toast until the next one. */
+  function showToast(msg, isErr, durationMs = 1800) {
     const node = panel.querySelector(".gg-toast");
     if (!node) return;
     node.hidden = false;
     node.textContent = msg;
     node.classList.toggle("gg-toast-err", Boolean(isErr));
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      node.hidden = true;
-    }, 1800);
+    if (durationMs > 0) {
+      toastTimer = setTimeout(() => {
+        node.hidden = true;
+      }, durationMs);
+    }
+  }
+
+  /**
+   * Select the original text in its field again, then let the background type the
+   * correction over it with real key events, like a person retyping it.
+   * @returns {Promise<"typed" | "cancelled" | "failed" | "unavailable">}
+   *   "unavailable": typing is off or the text cannot be selected, use the normal Replace.
+   */
+  async function replaceByTyping(text) {
+    const editable = selectionState.editable;
+    if (!text || !isWritableEditable(editable)) return "unavailable";
+    if (!selectOriginalForTyping(editable)) return "unavailable";
+
+    typing = true;
+    showToast("Typing\u2026 click the page or press Escape to stop", false, 0);
+    try {
+      const res = await sendToBackground({ type: "TYPE_TEXT", text });
+      if (res?.ok) return "typed";
+      if (res?.disabled) {
+        showToast("", false, 1);
+        return "unavailable";
+      }
+      if (res?.cancelled) {
+        const progress =
+          typeof res.typed === "number" && typeof res.total === "number"
+            ? ` after ${res.typed} of ${res.total} characters`
+            : "";
+        showToast(`Typing stopped${progress}. Ctrl+Z undoes it.`, true, 4000);
+        return "cancelled";
+      }
+      showToast(String(res?.error || "Typing failed.").slice(0, 200), true, 5000);
+      return "failed";
+    } catch (err) {
+      showToast(String(err?.message || err).slice(0, 200), true, 5000);
+      return "failed";
+    } finally {
+      typing = false;
+    }
+  }
+
+  function stopTyping() {
+    if (!typing || !isRuntimeAlive()) return;
+    chrome.runtime.sendMessage({ type: "TYPE_CANCEL" }).catch(() => {
+      /* typing already finished */
+    });
+  }
+
+  /** Focus the field and select exactly the originally checked text. */
+  function selectOriginalForTyping(editable) {
+    const original = selectionState.text || "";
+    if (!original) return false;
+
+    if (isWritableTextField(editable)) {
+      const range = locateInTextControl(editable, original);
+      if (!range) return false;
+      try {
+        editable.focus();
+        editable.setSelectionRange(range.start, range.end);
+        return editable.selectionStart === range.start && editable.selectionEnd === range.end;
+      } catch {
+        return false;
+      }
+    }
+
+    try {
+      editable.focus();
+    } catch {
+      /* ignore */
+    }
+    const range = restoreRange();
+    const sel = window.getSelection();
+    if (!range || !sel || sel.isCollapsed) return false;
+    const norm = (v) => String(v).replace(/\s+/g, " ").trim();
+    return norm(sel.toString()) === norm(original);
+  }
+
+  /** Where the original selection sits in an input/textarea now (or null). */
+  function locateInTextControl(el, original) {
+    const value = el.value;
+    const start = selectionState.start;
+    const end = selectionState.end;
+    if (typeof start === "number" && typeof end === "number" && value.slice(start, end) === original) {
+      return { start, end };
+    }
+    let idx = -1;
+    if (typeof start === "number" && start >= 0) idx = value.indexOf(original, Math.max(0, start - 1));
+    if (idx === -1) idx = value.indexOf(original);
+    return idx === -1 ? null : { start: idx, end: idx + original.length };
   }
 
   /**

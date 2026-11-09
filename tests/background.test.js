@@ -32,7 +32,7 @@ function validModelResponse(corrected = "hello") {
   };
 }
 
-function loadBackground(fetchImpl) {
+function loadBackground(fetchImpl, { settings = {}, debuggerApi = undefined } = {}) {
   let listener = null;
   let connectListener = null;
   const context = {
@@ -65,10 +65,12 @@ function loadBackground(fetchImpl) {
             return {
               apiKey: "xai-123456789012345",
               model: "grok-4.20-0309-non-reasoning",
+              ...settings,
             };
           },
         },
       },
+      debugger: debuggerApi,
     },
   };
   vm.createContext(context);
@@ -573,4 +575,146 @@ test("ports and key tests from untrusted contexts are refused", async () => {
   const fromPage = await send(listener, { type: "TEST_KEY" });
   assert.equal(fromPage.ok, false);
   assert.match(fromPage.error, /unauthorized/i);
+});
+
+function makeDebugger({ onCommand = null, attachError = null } = {}) {
+  const api = {
+    attached: [],
+    detached: [],
+    commands: [],
+    detachListeners: [],
+    async attach(target, version) {
+      if (attachError) throw new Error(attachError);
+      api.attached.push({ target, version });
+    },
+    async detach(target) {
+      api.detached.push(target);
+    },
+    async sendCommand(target, method, params) {
+      api.commands.push({ target, method, params });
+      if (onCommand) await onCommand(api.commands.length, { method, params });
+    },
+    onDetach: {
+      addListener: (fn) => api.detachListeners.push(fn),
+      removeListener: (fn) => {
+        api.detachListeners = api.detachListeners.filter((f) => f !== fn);
+      },
+    },
+  };
+  return api;
+}
+
+function loadTyping(options) {
+  const loaded = loadBackground(async () => validModelResponse(), options);
+  loaded.context.humanDelay = () => 0;
+  return loaded;
+}
+
+test("Replace typing sends real key events for every character", async () => {
+  const debuggerApi = makeDebugger();
+  const { listener } = loadTyping({ debuggerApi });
+
+  const result = await send(
+    listener,
+    { type: "TYPE_TEXT", text: "Hi čo\n😀" },
+    { tab: { id: 7 }, frameId: 0 }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.total, 7);
+  assert.deepEqual(JSON.parse(JSON.stringify(debuggerApi.attached)), [
+    { target: { tabId: 7 }, version: "1.3" },
+  ]);
+  assert.equal(debuggerApi.detached.length, 1);
+
+  const keyDowns = debuggerApi.commands.filter((c) => c.params.type === "keyDown");
+  assert.deepEqual(
+    keyDowns.map((c) => c.params.key),
+    ["H", "i", " ", "č", "o", "Enter"]
+  );
+  const h = keyDowns[0].params;
+  assert.equal(h.code, "KeyH");
+  assert.equal(h.windowsVirtualKeyCode, 72);
+  assert.equal(h.modifiers, 8);
+  assert.equal(keyDowns[5].params.text, "\r");
+
+  const keyUps = debuggerApi.commands.filter((c) => c.params.type === "keyUp");
+  assert.equal(keyUps.length, 6);
+  assert.ok(keyUps.every((c) => c.params.text === undefined));
+
+  const emoji = debuggerApi.commands.at(-1);
+  assert.equal(emoji.method, "Input.insertText");
+  assert.equal(emoji.params.text, "😀");
+});
+
+test("Replace typing is skipped when turned off in the popup", async () => {
+  const debuggerApi = makeDebugger();
+  const { listener } = loadTyping({ debuggerApi, settings: { typeLikeHuman: false } });
+
+  const result = await send(listener, { type: "TYPE_TEXT", text: "hello" });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.disabled, true);
+  assert.equal(debuggerApi.attached.length, 0);
+});
+
+test("Replace typing can be cancelled and always detaches", async () => {
+  let listenerRef = null;
+  const debuggerApi = makeDebugger({
+    onCommand: async (count) => {
+      // Cancel after the third character (two commands per key).
+      if (count === 6) {
+        const res = await send(listenerRef, { type: "TYPE_CANCEL" }, { tab: { id: 9 } });
+        assert.equal(res.cancelled, true);
+      }
+    },
+  });
+  const { listener } = loadTyping({ debuggerApi });
+  listenerRef = listener;
+
+  const result = await send(listener, { type: "TYPE_TEXT", text: "abcdefgh" }, { tab: { id: 9 } });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.cancelled, true);
+  assert.equal(result.typed, 3);
+  assert.equal(result.total, 8);
+  assert.equal(debuggerApi.detached.length, 1);
+});
+
+test("Chrome's debugging bar Cancel stops typing without a second detach", async () => {
+  const debuggerApi = makeDebugger({
+    onCommand: async (count) => {
+      if (count === 2) debuggerApi.detachListeners.forEach((fn) => fn({ tabId: 4 }, "canceled_by_user"));
+    },
+  });
+  const { listener } = loadTyping({ debuggerApi });
+
+  const result = await send(listener, { type: "TYPE_TEXT", text: "abc" }, { tab: { id: 4 } });
+
+  assert.equal(result.cancelled, true);
+  assert.equal(result.typed, 1);
+  assert.equal(debuggerApi.detached.length, 0);
+});
+
+test("Replace typing reports a failed attach and refuses senders without a tab", async () => {
+  const debuggerApi = makeDebugger({ attachError: "Another debugger is already attached" });
+  const { listener } = loadTyping({ debuggerApi });
+
+  const failed = await send(listener, { type: "TYPE_TEXT", text: "abc" });
+  assert.equal(failed.ok, false);
+  assert.match(failed.error, /Could not start typing/);
+
+  const noTab = await send(listener, { type: "TYPE_TEXT", text: "abc" }, { tab: undefined });
+  assert.equal(noTab.ok, false);
+  assert.match(noTab.error, /unauthorized/i);
+});
+
+test("human typing delays stay within a fast typist's range", () => {
+  const { context } = loadBackground(async () => validModelResponse());
+  for (let i = 0; i < 200; i += 1) {
+    const letter = context.humanDelay("a", "b");
+    assert.ok(letter >= 35 && letter <= 800, `letter delay ${letter}`);
+    const sentence = context.humanDelay(".", " ");
+    assert.ok(sentence >= 185 && sentence <= 1200, `sentence delay ${sentence}`);
+  }
 });

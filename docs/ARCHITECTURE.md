@@ -1,6 +1,6 @@
 # Architecture
 
-**Current version: 1.2.0**
+**Current version: 1.3.0**
 
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
@@ -77,7 +77,17 @@ All three modes share `HUMAN_WRITING_RULES` (plain everyday wording, nothing mor
 
 Language is **auto-detected** by the model (English, Czech, Slovak, and others). `translate` reports the source language and writes English into `corrected`.
 
-## Replace strategy (1.1.2+)
+## Replace by typing (1.3.0+)
+
+1. Content script selects the original span again (`setSelectionRange` for fields, the saved Range for rich editors) and verifies it matches the checked text.
+2. It sends `{ type: "TYPE_TEXT", text }`. The background accepts it only from a content script with a tab, and only when `typeLikeHuman` is not `false` in storage.
+3. Background attaches `chrome.debugger` to that tab and sends `Input.dispatchKeyEvent` keyDown/keyUp pairs per character (Enter for line breaks, `Input.insertText` for emoji and tabs) with `humanDelay()` pauses. The first key replaces the selection, exactly like a person typing over selected text.
+4. A trusted click, Escape (`TYPE_CANCEL`), or Chrome's debugging-bar Cancel (`onDetach`) stops the loop. The debugger is always detached in `finally`.
+5. If typing is off (`disabled`) or the span cannot be selected, the one-step strategy below is used.
+
+Verified in Chrome 156 against a `<textarea>`, a plain `contenteditable`, and Draft.js 0.11: model and DOM text match, the editor stays editable, all key events are trusted, and no paste event fires.
+
+## Replace strategy without typing (1.1.2+)
 
 | Target | Strategy |
 |--------|----------|
@@ -94,11 +104,12 @@ After success, the live selection is collapsed and the stored replacement Range 
 ## Permissions
 
 ```json
-"permissions": ["storage"],
+"permissions": ["storage", "debugger"],
 "host_permissions": ["https://api.x.ai/*"]
 ```
 
-- `storage` — save API key and model preference locally  
+- `storage` — save API key and model preference locally
+- `debugger` — type a Replace with real key events (see below). Chrome does not allow this permission to be optional  
 - `host_permissions` — only xAI API (not arbitrary sites)
 
 ### Content scripts
@@ -130,7 +141,7 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.2.0**) |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.3.0**) |
 | `background.js` | Grammar/style/translation prompts, fetch, response validation, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
 | `content/content.js` | Selection UX (mouse + keyboard), three-action toolbar, Shadow DOM UI, messaging retries, replace / redo logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |

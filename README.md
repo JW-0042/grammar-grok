@@ -3,12 +3,12 @@
 **Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, or **Translate to EN**, and get a structured result with automatic source-language detection.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.3.0-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
-**Current version: [1.2.0](CHANGELOG.md)** — automatic text check against AI-style characters and wording, plain everyday writing in all modes, live streaming preview, and security hardening.
+**Current version: [1.3.0](CHANGELOG.md)** — Replace types the correction like a human instead of pasting it. Since 1.2.0: automatic text check against AI-style characters and wording, plain everyday writing, live streaming preview.
 
 ---
 
@@ -27,6 +27,7 @@
 - Toolbar **fixed at the top** of the viewport (does not cover your selection)  
 - Hides automatically when nothing is selected  
 - **Copy** or **Replace** — Replace updates **only the selected span**; surrounding text stays (**1.1.2+**)  
+- **Replace types like a human** (**1.3.0**): the correction is typed key by key with real keyboard events, not pasted. Can be turned off in the popup  
 - **Redo** the same check, or one-shot **Grok 4.5** quality recheck from the result panel (**1.1.4+**)  
 - Works with inputs, textareas, and many contenteditable / `role="textbox"` editors  
 - API key stays in the **background worker** only — never injected into web pages  
@@ -58,7 +59,7 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Confirm version **1.2.0** on the extension card
+4. Confirm version **1.3.0** on the extension card
 5. Open the extension popup → paste API key → **Save**  
 6. Optional: **Test connection**
 
@@ -80,7 +81,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.2.0**) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.3.0**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
 | [docs/USAGE.md](docs/USAGE.md) | Everyday use, proofreading, translation, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
@@ -95,7 +96,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.2.0)
+├── manifest.json          # Chrome MV3 manifest (v1.3.0)
 ├── background.js          # Service worker: xAI API, validation, prompts, PING
 ├── content/
 │   └── content.js         # Selection toolbar, result panel, replace, retries
@@ -130,6 +131,7 @@ No build step and no `npm` dependencies — load the folder as an unpacked exten
 | Selected text | Sent to `https://api.x.ai` **only when you choose** Grammar, Grammar + Style, or Translate to EN |
 | Analytics | **None** |
 | Host access | Only `https://api.x.ai/*` |
+| Debugger | Used only to type a Replace into the current tab (Chrome shows a debugging bar meanwhile). Can be turned off in the popup |
 | Repo secrets | **No API keys or personal data** are shipped in this repository |
 
 More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -150,6 +152,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
+| **1.3.0** | Replace types the correction like a human with real key events (debugger permission, popup switch, click or Escape stops) |
 | **1.2.0** | Automatic AI-text check with one repair pass, plain writing in all modes, live streaming preview, CI, password fields excluded, trusted-click and sender hardening |
 | **1.1.8** | Natural everyday wording in both correction modes, no stock AI phrasing, em dashes, or semicolons in prose; necessary terminology and literal content preserved |
 | **1.1.7** | Selectable grok-4.7 and grok-4.6. grok-4.5, grok-4.6, and grok-4.7 use low reasoning effort, including the one-shot Grok 4.5 button. Popup recommends grok-4.20 non-reasoning. Grok 4.7 Fast is not on the public API |
