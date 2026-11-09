@@ -1,6 +1,6 @@
 # Usage guide
 
-**Current version: 1.1.8**
+**Current version: 1.2.0**
 
 ## Everyday flow
 
@@ -11,7 +11,7 @@
    - **Grammar** — fix mistakes and apply the wording rules below with minimal edits; keep your voice
    - **Grammar + Style** — also improve clarity and flow  
    - **Translate to EN** — translate the selection into English
-4. Wait for the result panel (right side).  
+4. Wait for the result panel (right side). The result appears there live while Grok writes it.  
 5. Read the source-language badge, summary, corrected or translated text, and issue list.
 6. **Copy** the result, or **Replace** when the selection is in an editable field.
 
@@ -19,7 +19,7 @@
 
 - Scroll freely — the mode bar stays at the top of the **viewport** and does not cover your selection.  
 - Clear the selection or click away → the mode bar **hides**.  
-- Press **Escape** to close the toolbar and result panel.  
+- Press **Escape** to close the toolbar and result panel. This also cancels a running check.  
 - Long results use **one** panel scrollbar; corrected text expands to its full height.  
 - Languages such as English, Czech, Slovak (and many others) are **auto-detected**.
 
@@ -31,9 +31,22 @@
 | Grammar + Style | You also want smoother, clearer wording without changing meaning |
 | Translate to EN | The selection is in another language and you want a fluent English version |
 
-Both correction modes use common everyday words and avoid stock AI phrasing, filler, and unnecessary formality. Necessary specialist or formal terms stay when the subject, precise meaning, or required register needs them.
+All modes use common everyday words and simple sentences, and avoid stock AI phrasing, filler, and unnecessary formality. Grok must not introduce words or constructions more complex or formal than your original. Words you already used may stay.
 
-Em dashes and semicolons in prose are replaced with suitable commas, periods, parentheses, or small sentence adjustments. Literal code, URLs, and verbatim quotations are preserved. Grammar makes only the minimal changes required; Grammar + Style may also improve clarity and flow. Translate to EN keeps its existing translation rules.
+Em dashes and semicolons in prose are replaced with suitable commas, periods, parentheses, or small sentence adjustments. Literal code, URLs, and verbatim quotations are preserved. Grammar makes only the minimal changes required; Grammar + Style may also improve clarity and flow.
+
+## Text check
+
+Every result goes through an automatic check before it is shown:
+
+| Found in the result | What happens |
+|---------------------|--------------|
+| Typographic quotes or apostrophes, the `…` character, en dashes, non-breaking or invisible spaces, Markdown bold that your original does not use | Converted back to plain keyboard characters |
+| Em dashes or semicolons | Grok gets one repair request; anything left is replaced with a comma or period |
+| Emoji, arrows, or bullets your original does not use | Grok gets one repair request |
+| Stock AI words or phrases your original does not use (for example *furthermore*, *leverage*, *v dnešnej dobe*, *prostredníctvom*, *nedílnou součástí*) | Grok gets one repair request (Grammar and Grammar + Style) |
+
+Code in backticks, URLs, e-mail addresses, and HTML entities are never changed. Greek keeps `;` because it is the Greek question mark. The panel shows a green **Text check** line with what was fixed, and a yellow **Please review** line if something could not be fixed automatically. A repair request costs one extra API call and is made only when needed.
 
 ## Copy vs Replace
 
@@ -89,7 +102,8 @@ Click the extension icon:
 ## Privacy in practice
 
 - Nothing is sent until you choose **Grammar**, **Grammar + Style**, or **Translate to EN**.
-- Only the selected text (plus the mode system prompt) goes to xAI.  
+- Only the selected text (plus the mode system prompt) goes to xAI. A text-check repair resends the same text with the first result.  
+- Password fields are ignored.  
 - No analytics; the project does not phone home to the authors.
 
 ## Keyboard / accessibility

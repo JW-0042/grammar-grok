@@ -34,6 +34,7 @@
   const MAX_ISSUES_UI = 40;
   const MSG_RETRIES = 4;
   const QUALITY_MODEL = "grok-4.5";
+  const STREAM_PORT_NAME = "gg-check-stream";
 
   const CSS = `
     :host, * { box-sizing: border-box; }
@@ -278,6 +279,12 @@
       box-shadow: 0 4px 16px rgba(0,0,0,.35);
     }
     .gg-toast-err { border-color: #8a3048; color: #ffb0c0; }
+    .gg-preview { opacity: .7; margin-top: 10px; }
+    .gg-spinner.gg-spinner-sm { width: 16px; height: 16px; border-width: 2px; margin: 0; flex-shrink: 0; }
+    .gg-status-line { display: flex; align-items: center; gap: 8px; }
+    .gg-status-line .gg-muted { margin: 0; }
+    .gg-check { margin: 10px 0 0; font-size: 12px; color: #9de0a8; }
+    .gg-check-warn { color: #ffcf7a; }
   `;
 
   /** @type {{ text: string, range: Range | null, editable: HTMLElement | null, start: number | null, end: number | null }} */
@@ -291,6 +298,9 @@
   /** Last successful/attempted check params so Redo / quality boost can re-run. */
   /** @type {{ mode: "grammar" | "style" | "translate", text: string } | null} */
   let lastCheckRequest = null;
+  /** Streaming port of the running check; disconnecting it aborts the API request. */
+  /** @type {{ port: chrome.runtime.Port, cancel: () => void } | null} */
+  let activePort = null;
 
   const host = document.createElement("div");
   host.id = HOST_ID;
@@ -449,7 +459,8 @@
     return (
       el instanceof HTMLTextAreaElement ||
       (el instanceof HTMLInputElement &&
-        /^(text|search|email|url|tel|password|number|)$/i.test(el.type || "text"))
+        // Never read password fields: their value must not leave the page.
+        /^(text|search|email|url|tel|number|)$/i.test(el.type || "text"))
     );
   }
 
@@ -623,7 +634,27 @@
     toolbar.style.pointerEvents = "auto";
   }
 
+  function cancelActivePort() {
+    const active = activePort;
+    activePort = null;
+    if (!active) return;
+    // disconnect() does not fire onDisconnect on this side, so settle the promise here.
+    active.cancel();
+    try {
+      active.port.disconnect();
+    } catch {
+      /* already closed */
+    }
+  }
+
   function hidePanel() {
+    if (loading) {
+      // Closing the panel abandons the running check (and its API request).
+      checkSeq += 1;
+      loading = false;
+      setToolbarLoading(false);
+    }
+    cancelActivePort();
     panel.hidden = true;
     panel.style.display = "none";
     panel.style.pointerEvents = "none";
@@ -788,8 +819,6 @@
       if (e.key === "Escape") {
         hideToolbar();
         hidePanel();
-        loading = false;
-        setToolbarLoading(false);
       }
     },
     true
@@ -805,6 +834,8 @@
   });
 
   toolbar.addEventListener("click", (e) => {
+    // Page scripts must not be able to trigger paid API requests.
+    if (!e.isTrusted) return;
     const btn = e.target.closest?.("[data-mode]");
     if (!btn || loading) return;
     e.preventDefault();
@@ -857,7 +888,7 @@
       };
       if (modelOverride) payload.model = modelOverride;
 
-      const res = await sendToBackground(payload);
+      const res = await checkWithPreview(payload, seq);
       // Ignore stale responses if user started another check
       if (seq !== checkSeq) return;
 
@@ -893,6 +924,100 @@
     }
   }
 
+  /**
+   * Streaming check over a port (live preview in the panel). Falls back to the
+   * one-shot message if the port fails before any progress arrived.
+   */
+  async function checkWithPreview(payload, seq) {
+    let progressed = false;
+    try {
+      return await checkViaPort(payload, (msg) => {
+        if (seq !== checkSeq) return;
+        progressed = true;
+        if (msg.type === "preview") {
+          updateLoadingPreview(msg.text);
+        } else if (msg.type === "phase" && msg.phase === "repair") {
+          setLoadingStatus("Removing AI-style wording and punctuation\u2026");
+        }
+      });
+    } catch (err) {
+      if (seq !== checkSeq || isContextInvalidError(err)) throw err;
+      if (progressed || err?.code !== "PORT_CLOSED") throw err;
+      return sendToBackground(payload);
+    }
+  }
+
+  function checkViaPort(payload, onEvent) {
+    return new Promise((resolve, reject) => {
+      const fail = (err) => {
+        const e = new Error(String(err?.message || err || "Connection closed."));
+        e.code = isContextInvalidError(err) ? "CONTEXT_INVALIDATED" : "PORT_CLOSED";
+        reject(e);
+      };
+      if (!isRuntimeAlive()) {
+        fail(new Error("Extension context invalidated."));
+        return;
+      }
+      cancelActivePort();
+      let port;
+      try {
+        port = chrome.runtime.connect({ name: STREAM_PORT_NAME });
+      } catch (err) {
+        fail(err);
+        return;
+      }
+      let settled = false;
+      const active = {
+        port,
+        cancel: () => {
+          if (settled) return;
+          release();
+          fail(new Error("Check cancelled."));
+        },
+      };
+      activePort = active;
+      const release = () => {
+        settled = true;
+        if (activePort === active) activePort = null;
+      };
+
+      port.onMessage.addListener((msg) => {
+        if (settled || !msg || typeof msg !== "object") return;
+        if (msg.type === "result") {
+          release();
+          try {
+            port.disconnect();
+          } catch {
+            /* ignore */
+          }
+          resolve(msg.res);
+          return;
+        }
+        onEvent(msg);
+      });
+
+      port.onDisconnect.addListener(() => {
+        let reason = "";
+        try {
+          reason = chrome.runtime.lastError?.message || "";
+        } catch {
+          /* context gone */
+        }
+        if (settled) return;
+        release();
+        fail(new Error(reason || "Connection to the extension background closed."));
+      });
+
+      try {
+        port.postMessage(payload);
+      } catch (err) {
+        if (settled) return;
+        release();
+        fail(err);
+      }
+    });
+  }
+
   function setToolbarLoading(on) {
     toolbar.classList.toggle("gg-loading", on);
     for (const b of toolbarButtons) b.disabled = on;
@@ -926,6 +1051,35 @@
     if (modelLabel) bits.push(String(modelLabel));
     body.append(el("div", "gg-spinner"), el("p", "gg-muted center", bits.join(" · ")));
     panel.append(head, body);
+  }
+
+  /** Swap the big spinner for a live, read-only preview of the streamed result. */
+  function updateLoadingPreview(text) {
+    const body = panel.querySelector(".gg-body");
+    if (!body) return;
+    let preview = body.querySelector(".gg-preview");
+    if (!preview) {
+      const status = el("div", "gg-status-line");
+      status.append(el("div", "gg-spinner gg-spinner-sm"), el("p", "gg-muted", "Writing\u2026"));
+      preview = document.createElement("textarea");
+      preview.className = "gg-corrected gg-preview";
+      preview.readOnly = true;
+      preview.rows = 1;
+      preview.setAttribute("aria-label", "Result preview");
+      preview.setAttribute("aria-busy", "true");
+      while (body.firstChild) body.removeChild(body.firstChild);
+      body.append(status, preview);
+    }
+    preview.value = String(text ?? "");
+    preview.style.height = "auto";
+    preview.style.height = `${Math.max(preview.scrollHeight, 1)}px`;
+  }
+
+  function setLoadingStatus(message) {
+    const status =
+      panel.querySelector(".gg-status-line .gg-muted") ||
+      panel.querySelector(".gg-body > .gg-muted");
+    if (status) status.textContent = message;
   }
 
   function showErrorPanel(message, { allowReload = false } = {}) {
@@ -1012,6 +1166,7 @@
     };
     body.append(ta);
     fitCorrected();
+    appendTextCheck(body, data.textCheck);
     // Second pass after layout (fonts/wrap) to avoid a short clipped first paint.
     requestAnimationFrame(fitCorrected);
 
@@ -1075,11 +1230,32 @@
     panel.append(head, body, foot, toast);
   }
 
+  /** Short note about the automatic AI-text check (textContent only). */
+  function appendTextCheck(body, check) {
+    if (!check || typeof check !== "object") return;
+    const fixed = Array.isArray(check.autoFixed)
+      ? check.autoFixed.slice(0, 8).map((s) => String(s).slice(0, 80))
+      : [];
+    const remaining = Array.isArray(check.remaining)
+      ? check.remaining.slice(0, 6).map((s) => String(s).slice(0, 120))
+      : [];
+    const done = [];
+    if (check.repaired) done.push("AI-style wording reworked");
+    done.push(...fixed);
+    if (done.length > 0) {
+      body.append(el("p", "gg-check", `Text check: ${done.join(", ")}.`));
+    }
+    if (remaining.length > 0) {
+      body.append(el("p", "gg-check gg-check-warn", `Please review: ${remaining.join(", ")}.`));
+    }
+  }
+
   function clearPanel() {
     while (panel.firstChild) panel.removeChild(panel.firstChild);
   }
 
   panel.addEventListener("click", async (e) => {
+    if (!e.isTrusted) return;
     const btn = e.target.closest?.("[data-action]");
     if (!btn) return;
     e.preventDefault();

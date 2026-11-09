@@ -1,6 +1,6 @@
 # Security Policy
 
-**Project version:** documented releases through **1.1.8** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
+**Project version:** documented releases through **1.2.0** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
 
 ## Reporting a vulnerability
 
@@ -39,7 +39,10 @@ We will try to respond within a reasonable time and coordinate a fix before publ
 ## Hardening notes (for reviewers)
 
 - API calls run only in the **background service worker**  
-- Content scripts cannot read the API key  
+- Content scripts cannot read the API key; the service worker also restricts `chrome.storage.local` to trusted extension contexts where Chrome supports it  
+- Password fields are never read or sent  
+- Toolbar and panel actions require trusted (real user) clicks, so page scripts cannot trigger API requests  
+- `TEST_KEY` is accepted only from the popup; streaming ports only from this extension's content scripts in a tab  
 - Host permission limited to `https://api.x.ai/*`  
 - Model names are allowlisted  
 - Message senders are checked against `chrome.runtime.id`  

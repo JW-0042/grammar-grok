@@ -5,6 +5,26 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.0] — 2026-11-09
+
+### Added
+
+- Automatic text check on every result. Characters that people rarely type and the author did not use (typographic quotes and apostrophes, the ellipsis character, en dashes, non-breaking and invisible spaces, Markdown bold) are converted back to plain keyboard characters. Em dashes, semicolons, added emoji, arrows or bullets, and stock AI words or phrases (English, Slovak, Czech) that the original does not use trigger one automatic repair request. Any em dashes or semicolons still left after that are replaced mechanically. Code, URLs, e-mail addresses, and HTML entities are never changed.
+- The result panel shows what the text check fixed and anything left to review.
+- Live preview: results stream into the panel while Grok is writing. Closing the panel or pressing Escape cancels the request.
+- GitHub Actions workflow runs syntax checks and the regression tests on every push and pull request.
+
+### Changed
+
+- All three modes, including Translate to EN, ask for plain everyday writing. The model must not introduce words or constructions more complex or formal than the original uses. Words the author already used may stay.
+
+### Security
+
+- Password fields are never read or sent.
+- Toolbar and panel buttons react only to real user clicks, so page scripts cannot trigger API requests.
+- Only the popup may run the key test. Streaming connections are accepted only from this extension's content scripts.
+- The service worker restricts `chrome.storage.local` to trusted extension contexts where Chrome supports it.
+
 ## [1.1.8] — 2026-10-04
 
 ### Changed
@@ -137,7 +157,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.1.8]: https://github.com/JW-0042/grammar-grok/compare/44b9d18...HEAD
+[1.2.0]: https://github.com/JW-0042/grammar-grok/compare/v1.1.8...HEAD
+[1.1.8]: https://github.com/JW-0042/grammar-grok/compare/44b9d18...v1.1.8
 [1.1.7]: https://github.com/JW-0042/grammar-grok/compare/af7ea43...44b9d18
 [1.1.6]: https://github.com/JW-0042/grammar-grok/compare/f7ace21...af7ea43
 [1.1.5]: https://github.com/JW-0042/grammar-grok/compare/v1.1.4...f7ace21

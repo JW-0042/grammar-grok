@@ -1,6 +1,6 @@
 # Development
 
-**Current version: 1.1.8**
+**Current version: 1.2.0**
 
 ## Stack
 
@@ -10,11 +10,13 @@
 
 No `npm install` is required to run or load the extension.
 
-Run the background regression tests with:
+Run the regression tests with:
 
 ```bash
-node --test tests/background.test.js
+node --test tests/*.test.js
 ```
+
+GitHub Actions ([`.github/workflows/test.yml`](../.github/workflows/test.yml)) runs the same tests plus `node --check` on every push to `main` and on pull requests. `tests/release.test.js` fails when the manifest version and the docs disagree.
 
 ## Local workflow
 
@@ -108,7 +110,9 @@ Keep these in sync when releasing:
 - [ ] X/Draft.js DOM text and immutable editor state stay synchronized after Replace and immediate typing
 - [ ] Contenteditable / `role="textbox"` (e.g. X compose) after **page refresh**  
 - [ ] After extension Reload, without page refresh: friendly context error + Refresh button (**1.1.1+**)  
-- [ ] Escape closes UI  
+- [ ] Escape closes UI and cancels a running check  
+- [ ] Result streams into the panel while Grok writes; the text check note appears under the corrected text  
+- [ ] Selecting text in a password field never shows the toolbar  
 - [ ] No API key string in repo  
 
 ## Releasing
@@ -118,7 +122,7 @@ Keep these in sync when releasing:
 3. Commit, then optionally tag the release (for example, `git tag vX.Y.Z && git push origin vX.Y.Z`).
 4. Push `main` to GitHub: https://github.com/JW-0042/grammar-grok  
 
-The repository includes local Node regression tests but no automated CI yet; add GitHub Actions later if you want checks on every push.
+CI must be green before tagging a release.
 
 ## Architecture reference
 

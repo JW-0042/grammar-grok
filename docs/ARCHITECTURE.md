@@ -1,6 +1,6 @@
 # Architecture
 
-**Current version: 1.1.8**
+**Current version: 1.2.0**
 
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
@@ -43,17 +43,18 @@ The content script **never** receives or stores the API key. Pages you visit can
 1. User selects text on an `http(s)` page (top frame or nested frame).  
 2. Content script shows a **fixed top toolbar**: Grammar | Grammar + Style | Translate to EN.
 3. Content script may **PING** the service worker to wake it (MV3).  
-4. On mode click, content script sends `{ type: "CHECK_TEXT", mode, text }` with retries if the worker is cold.  
+4. On mode click, content script opens a `gg-check-stream` port and sends `{ type: "CHECK_TEXT", mode, text }`. If the port fails before any progress, it falls back to the one-shot `sendMessage` with retries.  
 5. Background validates sender, mode, text length, API key, and model allowlist.  
 6. Background `POST`s to `https://api.x.ai/v1/chat/completions` with a mode-specific system prompt.  
-7. Model returns structured JSON (source language, corrected/translated text, issues). Background validates response size and shape, clamps issue fields, and returns the model id used.
+7. With a port, the request uses `stream: true`; the background sends throttled `preview` events with the partially decoded `corrected` field. Model returns structured JSON (source language, corrected/translated text, issues). Background validates response size and shape, clamps issue fields, and returns the model id used.
+7a. **Text check** (`reviewText`): safe character fixes are applied directly; em dashes, semicolons, added symbols, or added stock AI phrases trigger one repair request (original messages + first result + repair instruction), then `applyPunctuationFallback` removes any remaining em dashes and semicolons. The result carries `textCheck: { autoFixed, repaired, remaining }`.
 8. Content script renders the result panel (DOM nodes only) and offers Copy / Replace / Redo / optional one-shot Grok 4.5 (including after Translate to EN).
 
 Optional: result-panel **Redo** re-sends the same text/mode. **Grok 4.5** sends the same request with `{ model: "grok-4.5" }` for one request only (saved popup model is unchanged). Background still allowlists the override.
 
 Checks use xAI JSON mode. Leading/trailing selection whitespace is kept outside the model request and restored around the result. Active requests are tracked per tab/frame, so a new check only cancels an older request from the same content-script scope.
 
-Grammar and Grammar + Style share prompt rules for natural everyday wording and avoiding stock AI phrasing, em dashes, and semicolons in prose. Grammar allows minimal edits to satisfy these rules. Necessary terminology and literal code, URLs, and verbatim quotations are preserved. These are model instructions, not deterministic output filtering; Translate to EN has a separate prompt.
+All three modes share `HUMAN_WRITING_RULES` (plain everyday wording, nothing more complex than the original, no em dashes, semicolons, or added typographic characters). Grammar allows minimal edits to satisfy these rules. Code, URLs, and verbatim quotations are preserved. The prompt rules are backed by the deterministic text check above. Stock-phrase detection runs only for Grammar and Grammar + Style, because a translation is compared with text in another language.
 
 `grok-4.5`, `grok-4.6`, and `grok-4.7` requests set `reasoning_effort` to `low` so the default high reasoning pass does not blow the 60-second timeout. This includes the one-shot Grok 4.5 button. The popup labels **grok-4.20 non-reasoning** as recommended; that label does not change the saved model, and an empty storage value still resolves to `grok-4.5`. Grok 4.7 Fast is not allowlisted: xAI offers it only through Cursor and Grok Build.
 
@@ -61,7 +62,8 @@ Grammar and Grammar + Style share prompt rules for natural everyday wording and 
 
 | Situation | Behavior |
 |-----------|----------|
-| Service worker asleep | `PING` + retries on `CHECK_TEXT` |
+| Service worker asleep | `PING` + retries on `CHECK_TEXT`; `connect()` also wakes it |
+| Panel closed / Escape during a check | Port disconnected; background aborts the API request |
 | Extension reloaded while tab open | Detect *context invalidated*; show **Refresh page** |
 | No receiver briefly | Retry with short backoff |
 
@@ -112,7 +114,9 @@ Excludes Chrome Web Store URLs. Runs in nested frames so reply composers in ifra
 
 ## Security controls (summary)
 
-- Trusted message senders only (`chrome.runtime.id`)  
+- Trusted message senders only (`chrome.runtime.id`); `TEST_KEY` only from extension pages; streaming ports only from content scripts in a tab  
+- Password fields excluded; toolbar/panel actions require `event.isTrusted`  
+- `chrome.storage.local` restricted to trusted contexts where supported  
 - Model allowlist  
 - Request timeout / abort of overlapping checks within the same tab/frame
 - Light client-side rate spacing  
@@ -126,7 +130,7 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.1.8**) |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.2.0**) |
 | `background.js` | Grammar/style/translation prompts, fetch, response validation, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
 | `content/content.js` | Selection UX (mouse + keyboard), three-action toolbar, Shadow DOM UI, messaging retries, replace / redo logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |

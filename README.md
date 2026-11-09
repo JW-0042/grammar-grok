@@ -3,12 +3,12 @@
 **Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, or **Translate to EN**, and get a structured result with automatic source-language detection.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.8-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.2.0-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
-**Current version: [1.1.8](CHANGELOG.md)** — Grammar and Grammar + Style use natural everyday wording and avoid stock AI phrasing, em dashes, and semicolons in prose.
+**Current version: [1.2.0](CHANGELOG.md)** — automatic text check against AI-style characters and wording, plain everyday writing in all modes, live streaming preview, and security hardening.
 
 ---
 
@@ -20,7 +20,9 @@
   - **Grammar + Style** — also clarity, flow, and word choice  
   - **Translate to EN** — translate any selected language into English
 - **Auto language detection** (EN, CS, SK, …)  
-- Both correction modes avoid stock AI phrasing and use common everyday words, retaining necessary terminology. Em dashes and semicolons in prose are replaced with suitable punctuation; literal code, URLs, and verbatim quotations are preserved (**1.1.8**).
+- Plain everyday writing in all modes: no stock AI phrasing, and no words more complex than the original uses (**1.2.0**)
+- **Automatic text check** (**1.2.0**): removes em dashes, semicolons, typographic quotes, invisible characters and other typical AI characters, and asks Grok once to rework stock AI words it added. Code, URLs and e-mail addresses stay untouched
+- **Live preview** while Grok writes the result (**1.2.0**)
 - Popup models: **grok-4.7**, **grok-4.6**, grok-4.5, grok-4.3, and both grok-4.20 variants. **grok-4.20 non-reasoning** is marked recommended. Grok 4.7 Fast is not offered (**1.1.7**)  
 - Toolbar **fixed at the top** of the viewport (does not cover your selection)  
 - Hides automatically when nothing is selected  
@@ -56,7 +58,7 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Confirm version **1.1.8** on the extension card
+4. Confirm version **1.2.0** on the extension card
 5. Open the extension popup → paste API key → **Save**  
 6. Optional: **Test connection**
 
@@ -78,7 +80,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.1.8**) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.2.0**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
 | [docs/USAGE.md](docs/USAGE.md) | Everyday use, proofreading, translation, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
@@ -93,7 +95,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.1.8)
+├── manifest.json          # Chrome MV3 manifest (v1.2.0)
 ├── background.js          # Service worker: xAI API, validation, prompts, PING
 ├── content/
 │   └── content.js         # Selection toolbar, result panel, replace, retries
@@ -106,7 +108,8 @@ grammar-grok/
 │   ├── icon48.png
 │   └── icon128.png
 ├── tests/
-│   └── background.test.js # Background regression tests
+│   ├── background.test.js # Background regression tests
+│   └── release.test.js    # Version consistency checks
 ├── docs/                  # Full documentation
 ├── CHANGELOG.md
 ├── LICENSE                # MIT
@@ -147,6 +150,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
+| **1.2.0** | Automatic AI-text check with one repair pass, plain writing in all modes, live streaming preview, CI, password fields excluded, trusted-click and sender hardening |
 | **1.1.8** | Natural everyday wording in both correction modes, no stock AI phrasing, em dashes, or semicolons in prose; necessary terminology and literal content preserved |
 | **1.1.7** | Selectable grok-4.7 and grok-4.6. grok-4.5, grok-4.6, and grok-4.7 use low reasoning effort, including the one-shot Grok 4.5 button. Popup recommends grok-4.20 non-reasoning. Grok 4.7 Fast is not on the public API |
 | **1.1.6** | X/Draft.js Replace stays immediately editable; native Ctrl/Cmd+X remains reliable; unsafe duplicate/fallback editor mutations removed |
