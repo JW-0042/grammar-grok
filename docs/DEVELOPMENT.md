@@ -1,6 +1,6 @@
 # Development
 
-**Current version: 1.3.0**
+**Current version: 1.3.1**
 
 ## Stack
 
@@ -113,8 +113,8 @@ Keep these in sync when releasing:
 - [ ] Escape closes UI and cancels a running check  
 - [ ] Result streams into the panel while Grok writes; the text check note appears under the corrected text  
 - [ ] Selecting text in a password field never shows the toolbar  
-- [ ] Replace with typing on: the original span is selected again and the correction is typed over it; works in `<textarea>`, plain `contenteditable`, and X; a click or Escape stops it; Chrome's debugging bar disappears afterwards  
-- [ ] Replace with typing off (popup): one-step replacement as before  
+- [ ] **Replace by typing**: the original span is selected again and the correction is typed over it; works in `<textarea>`, plain `contenteditable`, and X; a click or Escape stops it; Chrome's debugging bar disappears afterwards  
+- [ ] **Replace**: one-step replacement, no debugging bar  
 - [ ] No API key string in repo  
 
 ## Releasing

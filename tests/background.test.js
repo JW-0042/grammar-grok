@@ -647,15 +647,23 @@ test("Replace typing sends real key events for every character", async () => {
   assert.equal(emoji.params.text, "😀");
 });
 
-test("Replace typing is skipped when turned off in the popup", async () => {
+test("Replace by typing ignores the old 1.3.0 popup switch", async () => {
   const debuggerApi = makeDebugger();
   const { listener } = loadTyping({ debuggerApi, settings: { typeLikeHuman: false } });
 
   const result = await send(listener, { type: "TYPE_TEXT", text: "hello" });
 
+  assert.equal(result.ok, true);
+  assert.equal(debuggerApi.attached.length, 1);
+});
+
+test("Replace by typing reports a clear error without the debugger API", async () => {
+  const { listener } = loadTyping({ debuggerApi: undefined });
+
+  const result = await send(listener, { type: "TYPE_TEXT", text: "hello" });
+
   assert.equal(result.ok, false);
-  assert.equal(result.disabled, true);
-  assert.equal(debuggerApi.attached.length, 0);
+  assert.match(result.error, /not available/i);
 });
 
 test("Replace typing can be cancelled and always detaches", async () => {

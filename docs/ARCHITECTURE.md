@@ -1,6 +1,6 @@
 # Architecture
 
-**Current version: 1.3.0**
+**Current version: 1.3.1**
 
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
@@ -48,7 +48,7 @@ The content script **never** receives or stores the API key. Pages you visit can
 6. Background `POST`s to `https://api.x.ai/v1/chat/completions` with a mode-specific system prompt.  
 7. With a port, the request uses `stream: true`; the background sends throttled `preview` events with the partially decoded `corrected` field. Model returns structured JSON (source language, corrected/translated text, issues). Background validates response size and shape, clamps issue fields, and returns the model id used.
 7a. **Text check** (`reviewText`): safe character fixes are applied directly; em dashes, semicolons, added symbols, or added stock AI phrases trigger one repair request (original messages + first result + repair instruction), then `applyPunctuationFallback` removes any remaining em dashes and semicolons. The result carries `textCheck: { autoFixed, repaired, remaining }`.
-8. Content script renders the result panel (DOM nodes only) and offers Copy / Replace / Redo / optional one-shot Grok 4.5 (including after Translate to EN).
+8. Content script renders the result panel (DOM nodes only) and offers Copy / Replace / Replace by typing / Redo / optional one-shot Grok 4.5 (including after Translate to EN).
 
 Optional: result-panel **Redo** re-sends the same text/mode. **Grok 4.5** sends the same request with `{ model: "grok-4.5" }` for one request only (saved popup model is unchanged). Background still allowlists the override.
 
@@ -77,13 +77,13 @@ All three modes share `HUMAN_WRITING_RULES` (plain everyday wording, nothing mor
 
 Language is **auto-detected** by the model (English, Czech, Slovak, and others). `translate` reports the source language and writes English into `corrected`.
 
-## Replace by typing (1.3.0+)
+## Replace by typing (1.3.0+, own button since 1.3.1)
 
-1. Content script selects the original span again (`setSelectionRange` for fields, the saved Range for rich editors) and verifies it matches the checked text.
-2. It sends `{ type: "TYPE_TEXT", text }`. The background accepts it only from a content script with a tab, and only when `typeLikeHuman` is not `false` in storage.
+1. After a trusted click on **Replace by typing**, the content script selects the original span again (`setSelectionRange` for fields, the saved Range for rich editors) and verifies it matches the checked text.
+2. It sends `{ type: "TYPE_TEXT", text }`. The background accepts it only from a content script with a tab.
 3. Background attaches `chrome.debugger` to that tab and sends `Input.dispatchKeyEvent` keyDown/keyUp pairs per character (Enter for line breaks, `Input.insertText` for emoji and tabs) with `humanDelay()` pauses. The first key replaces the selection, exactly like a person typing over selected text.
 4. A trusted click, Escape (`TYPE_CANCEL`), or Chrome's debugging-bar Cancel (`onDetach`) stops the loop. The debugger is always detached in `finally`.
-5. If typing is off (`disabled`) or the span cannot be selected, the one-step strategy below is used.
+5. If the span cannot be selected again or typing cannot start, the panel shows an error. It never falls back to a paste. The plain **Replace** button uses the one-step strategy below.
 
 Verified in Chrome 156 against a `<textarea>`, a plain `contenteditable`, and Draft.js 0.11: model and DOM text match, the editor stays editable, all key events are trusted, and no paste event fires.
 
@@ -141,7 +141,7 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.3.0**) |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.3.1**) |
 | `background.js` | Grammar/style/translation prompts, fetch, response validation, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
 | `content/content.js` | Selection UX (mouse + keyboard), three-action toolbar, Shadow DOM UI, messaging retries, replace / redo logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |

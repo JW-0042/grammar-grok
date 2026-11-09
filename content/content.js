@@ -1211,7 +1211,13 @@
       const rep = el("button", "gg-action", "Replace");
       rep.type = "button";
       rep.dataset.action = "replace";
-      foot.append(rep);
+      rep.title = "Replace the selection with the result in one step";
+      const typeRep = el("button", "gg-action", "Replace by typing");
+      typeRep.type = "button";
+      typeRep.dataset.action = "replace-typing";
+      typeRep.title =
+        "Type the result over your selection key by key, like a person. Click the page or press Escape to stop.";
+      foot.append(rep, typeRep);
     }
     if (canRerun) {
       const redo = el("button", "gg-action", "Redo");
@@ -1312,21 +1318,22 @@
       return;
     }
 
-    if (action === "replace") {
+    if (action === "replace-typing") {
       if (typing) return;
-      const editable = selectionState.editable;
-
-      // Preferred: type the correction with real key events (see popup setting).
+      // Type the correction with real key events. Never falls back to a paste.
       const typedResult = await replaceByTyping(corrected);
       if (typedResult === "typed") {
         selectionState = emptySelection();
         hideToolbar();
         showToast("Typed");
         setTimeout(hidePanel, 700);
-        return;
       }
-      if (typedResult !== "unavailable") return;
+      return;
+    }
 
+    if (action === "replace") {
+      if (typing) return;
+      const editable = selectionState.editable;
       const ok = replaceSelection(corrected);
       if (ok) {
         settleSelectionAfterReplace(editable);
@@ -1390,23 +1397,20 @@
   /**
    * Select the original text in its field again, then let the background type the
    * correction over it with real key events, like a person retyping it.
-   * @returns {Promise<"typed" | "cancelled" | "failed" | "unavailable">}
-   *   "unavailable": typing is off or the text cannot be selected, use the normal Replace.
+   * @returns {Promise<"typed" | "cancelled" | "failed">}
    */
   async function replaceByTyping(text) {
     const editable = selectionState.editable;
-    if (!text || !isWritableEditable(editable)) return "unavailable";
-    if (!selectOriginalForTyping(editable)) return "unavailable";
+    if (!text || !isWritableEditable(editable) || !selectOriginalForTyping(editable)) {
+      showToast("Could not find the original text. Use Replace or Copy.", true, 4000);
+      return "failed";
+    }
 
     typing = true;
     showToast("Typing\u2026 click the page or press Escape to stop", false, 0);
     try {
       const res = await sendToBackground({ type: "TYPE_TEXT", text });
       if (res?.ok) return "typed";
-      if (res?.disabled) {
-        showToast("", false, 1);
-        return "unavailable";
-      }
       if (res?.cancelled) {
         const progress =
           typeof res.typed === "number" && typeof res.total === "number"

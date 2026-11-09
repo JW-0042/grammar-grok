@@ -205,20 +205,3 @@ button.ghost:hover {
 .help li {
   margin-bottom: 4px;
 }
-
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  cursor: pointer;
-}
-
-.toggle input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  padding: 0;
-  accent-color: var(--accent);
-  flex-shrink: 0;
-}

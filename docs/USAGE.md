@@ -1,6 +1,6 @@
 # Usage guide
 
-**Current version: 1.3.0**
+**Current version: 1.3.1**
 
 ## Everyday flow
 
@@ -53,19 +53,20 @@ Code in backticks, URLs, e-mail addresses, and HTML entities are never changed. 
 | Action | Behavior |
 |--------|----------|
 | **Copy** | Puts the full corrected or translated text on the clipboard |
-| **Replace** | Swaps **only the text you selected** with the result. Text before/after the selection in the same box stays put (**1.1.2+**) |
+| **Replace** | Swaps **only the text you selected** with the result in one step. Text before/after the selection in the same box stays put (**1.1.2+**) |
+| **Replace by typing** | Types the result over your selection key by key, like a person (**1.3.0+**, own button since **1.3.1**) |
 | **Redo** | Runs the same check again with your **saved** popup model |
 | **Grok 4.5** | One-time recheck with Grok 4.5 when the fast model result is not good enough (does **not** change your saved model) |
 
-### Replace types like a human (1.3.0+)
+### Replace by typing
 
-With **Replace by typing like a human** on (popup, on by default), Replace selects your original text again and types the correction over it key by key, with short human-like pauses. Sites such as X see ordinary typing, not a paste.
+**Replace by typing** selects your original text again and types the correction over it key by key, with short human-like pauses. Sites such as X see ordinary typing, not a paste. Plain **Replace** does the same swap in one step.
 
 - Typing speed is that of a fast typist: roughly 10 to 20 seconds for a 280-character post.
 - While it types, Chrome shows a bar saying Grammar Grok started debugging the browser. That is Chrome's standard notice for real key events. It disappears when typing ends.
 - **Click anywhere on the page or press Escape to stop.** Clicking Cancel on Chrome's bar stops it too. **Ctrl+Z** undoes the typed text.
 - Do not switch tabs or windows while it types.
-- If typing cannot start (for example, DevTools or another debugging extension is attached to the tab), the panel says so. Turn typing off in the popup to get the one-step Replace.
+- If typing cannot start (for example, DevTools or another debugging extension is attached to the tab), or the original text cannot be found again, the panel says so. Use **Replace** or **Copy** instead. Replace by typing never pastes.
 
 After a successful Replace, the editor selection is collapsed to a normal caret. Native editing shortcuts such as **Ctrl/Cmd+X** therefore continue to work normally (**1.1.6+**).
 
@@ -79,7 +80,7 @@ After a successful Replace, the editor selection is collapsed to a normal caret.
 - Heavily scripted editors (some social compose boxes, collaborative docs)  
 - Read-only page text (not an editor)
 
-With typing off, X/Draft.js replacements use the editor's own paste handler so its internal state stays editable. If another stateful rich editor rejects its native replacement, the extension copies the result instead of forcing visible but non-editable DOM text; paste it manually.
+With plain **Replace**, X/Draft.js replacements use the editor's own paste handler so its internal state stays editable. If another stateful rich editor rejects its native replacement, the extension copies the result instead of forcing visible but non-editable DOM text; paste it manually.
 
 ### Partial selection example
 

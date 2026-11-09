@@ -1053,7 +1053,8 @@ const activeTyping = new Map();
  * Type `message.text` into the focused element of the sender's tab with real
  * (trusted) key events and human-like timing. The content script has already
  * focused the field and selected the original text, so the first key replaces it.
- * @returns {Promise<{ ok: boolean, disabled?: boolean, cancelled?: boolean, typed?: number, total?: number, error?: string }>}
+ * Started only by the "Replace by typing" button in the result panel.
+ * @returns {Promise<{ ok: boolean, cancelled?: boolean, typed?: number, total?: number, error?: string }>}
  */
 async function handleTypeText(message, sender) {
   const tabId = sender?.tab?.id;
@@ -1066,9 +1067,8 @@ async function handleTypeText(message, sender) {
     return { ok: false, error: "The text is too long to type." };
   }
 
-  const { typeLikeHuman } = await chrome.storage.local.get({ typeLikeHuman: true });
-  if (typeLikeHuman === false || typeof chrome.debugger?.attach !== "function") {
-    return { ok: false, disabled: true };
+  if (typeof chrome.debugger?.attach !== "function") {
+    return { ok: false, error: "Typing is not available in this browser. Use Replace or Copy." };
   }
   if (activeTyping.has(tabId)) {
     return { ok: false, error: "Already typing in this tab." };
@@ -1094,7 +1094,7 @@ async function handleTypeText(message, sender) {
     } catch (err) {
       return {
         ok: false,
-        error: `Could not start typing (${safeErrorMessage(err)}). Close DevTools or other debugging extensions, or turn off typing in the popup.`,
+        error: `Could not start typing (${safeErrorMessage(err)}). Close DevTools or other debugging extensions, or use Replace.`,
       };
     }
 

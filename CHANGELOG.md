@@ -5,6 +5,13 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.1] — 2026-11-09
+
+### Changed
+
+- Typing is now its own button. The result panel shows **Replace** (one-step replacement, as before 1.3.0) and **Replace by typing** (types the result key by key like a person). Replace by typing never falls back to a paste: if the original text cannot be found again, the panel says so.
+- The popup switch "Replace by typing like a human" is gone. The popup's How to use section explains both buttons instead, and the old setting is removed from storage.
+
 ## [1.3.0] — 2026-11-09
 
 ### Added
@@ -169,7 +176,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.3.0]: https://github.com/JW-0042/grammar-grok/compare/68bc477...HEAD
+[1.3.1]: https://github.com/JW-0042/grammar-grok/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/JW-0042/grammar-grok/compare/68bc477...v1.3.0
 [1.2.0]: https://github.com/JW-0042/grammar-grok/compare/v1.1.8...68bc477
 [1.1.8]: https://github.com/JW-0042/grammar-grok/compare/44b9d18...v1.1.8
 [1.1.7]: https://github.com/JW-0042/grammar-grok/compare/af7ea43...44b9d18

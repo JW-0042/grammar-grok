@@ -55,18 +55,6 @@
       </p>
     </section>
 
-    <section class="card">
-      <label class="toggle" for="typeLikeHuman">
-        <input id="typeLikeHuman" type="checkbox" />
-        <span>Replace by typing like a human</span>
-      </label>
-      <p class="hint">
-        Replace types the corrected text key by key instead of pasting it, so sites see
-        normal typing. While typing, Chrome shows a "started debugging this browser" bar.
-        Click anywhere on the page or press Escape to stop. Turn off to insert the text at once.
-      </p>
-    </section>
-
     <div class="actions">
       <button type="button" id="save" class="primary">Save</button>
       <button type="button" id="test" class="secondary">Test connection</button>
@@ -80,8 +68,17 @@
         <li>
           Choose <strong>Grammar</strong>, <strong>Grammar + Style</strong>, or <strong>Translate to EN</strong>
         </li>
-        <li>Copy or replace the corrected text</li>
+        <li>Copy the result, or put it back into the field</li>
       </ol>
+      <p class="hint">
+        <strong>Replace</strong> swaps your selection for the result in one step.
+      </p>
+      <p class="hint">
+        <strong>Replace by typing</strong> types the result over your selection key by key,
+        like a person, so sites see normal typing instead of a paste. While it types, Chrome
+        shows a "started debugging this browser" bar. Click anywhere on the page or press
+        Escape to stop, and Ctrl+Z undoes it.
+      </p>
       <p class="hint">
         Language is detected automatically (EN, CS, SK, …).
       </p>
