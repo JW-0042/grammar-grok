@@ -16,6 +16,11 @@ const FETCH_TIMEOUT_MS = 60000;
 const MIN_REQUEST_GAP_MS = 400;
 const STREAM_PORT_NAME = "gg-check-stream";
 const PREVIEW_INTERVAL_MS = 120;
+/**
+ * Chrome stops a service-worker task after about five minutes. At typing speed
+ * that is roughly 4000 characters, so stay well below it.
+ */
+const MAX_TYPE_CHARS = 2500;
 
 /** Models users may select (blocks arbitrary stored strings). */
 const ALLOWED_MODELS = new Set([
@@ -420,7 +425,12 @@ async function handleCheck(message, sender, { onProgress = null, cancelSignal = 
     // once to repair what cannot be fixed mechanically (em dashes, stock phrases, …).
     let result = parsed;
     let review = reviewText(result.corrected, core, checkMode, result.language);
-    const textCheck = { autoFixed: [...review.fixed], repaired: false, remaining: [] };
+    const textCheck = {
+      autoFixed: [...review.fixed],
+      repaired: false,
+      reworked: [],
+      remaining: [],
+    };
     result = { ...result, corrected: review.text };
 
     if (review.problems.length > 0) {
@@ -443,7 +453,14 @@ async function handleCheck(message, sender, { onProgress = null, cancelSignal = 
         const repaired = parseJsonResponse(repairedContent, core, checkMode);
         if (!repaired.parseError) {
           const second = reviewText(repaired.corrected, core, checkMode, repaired.language);
-          if (second.problems.length <= review.problems.length) {
+          if (problemWeight(second.problems) < problemWeight(review.problems)) {
+            // Name only what the repair actually improved.
+            textCheck.reworked = review.problems
+              .filter((p) => {
+                const after = second.problems.find((q) => q.id === p.id);
+                return !after || after.count < p.count;
+              })
+              .map((p) => p.label);
             result = { ...repaired, corrected: second.text };
             review = second;
             textCheck.repaired = true;
@@ -457,7 +474,7 @@ async function handleCheck(message, sender, { onProgress = null, cancelSignal = 
         // Repair is best effort: keep the first result and fall back below.
       }
 
-      const fallback = applyPunctuationFallback(result.corrected, result.language);
+      const fallback = applyPunctuationFallback(result.corrected, result.language, core);
       result = { ...result, corrected: fallback.text };
       for (const f of fallback.fixed) {
         if (!textCheck.autoFixed.includes(f)) textCheck.autoFixed.push(f);
@@ -466,10 +483,11 @@ async function handleCheck(message, sender, { onProgress = null, cancelSignal = 
         .problems.map((p) => p.label);
     }
 
+    // For corrections the text itself decides, whatever the model claimed.
     const hasChanges =
       checkMode === "translate"
         ? result.hasChanges
-        : result.hasChanges || result.corrected !== core;
+        : result.corrected.trim() !== core.trim();
 
     return {
       ok: true,
@@ -846,13 +864,35 @@ function extractPartialJsonString(json, key) {
 /* Text check: AI-typical characters and wording                              */
 /* ------------------------------------------------------------------------- */
 
-/** Code, URLs, e-mail addresses and HTML entities are never touched. */
-const PROTECTED_RE =
-  /```[\s\S]*?```|`[^`\n]*`|\b(?:https?:\/\/|www\.)[^\s<>"']+|[\w.+-]+@[\w-]+\.[\w.-]+|&(?:[a-z]+|#\d+|#x[0-9a-f]+);/gi;
+/** Spans the text check never touches. */
+const PROTECTED_PARTS = [
+  /```[\s\S]*?```/, // fenced code
+  /`[^`\n]*`/, // inline code
+  /\b(?:https?:\/\/|www\.)[^\s<>"']+/, // URLs
+  /[\w.+-]+@[\w-]+\.[\w.-]+/, // e-mail addresses
+  /&(?:[a-z]+|#\d+|#x[0-9a-f]+);/, // HTML entities
+  /\b[a-z]:\\[^\s"'<>|]+/, // Windows paths (C:\Users\me)
+  /(?<![\w/])(?:~|\.{1,2})?\/[\w.-]+(?:\/[\w.-]+)+/, // Unix-like paths (/usr/local/bin)
+  /;['^-]?(?:[)(\][*]|[dpo](?![a-z]))/, // emoticons such as ;) ;-) ;D
+];
+const PROTECTED_RE = new RegExp(PROTECTED_PARTS.map((re) => re.source).join("|"), "gi");
 
-function splitProtected(text) {
+/** Quotations in the original (with their quote marks) that contain a dash or semicolon. */
+const QUOTED_RE =
+  /"[^"\n]{2,300}"|\u201E[^\u201C\n]{2,300}\u201C|\u201C[^\u201D\n]{2,300}\u201D|\u00AB[^\u00BB\n]{2,300}\u00BB/g;
+
+function authorQuotes(original) {
+  const quotes = String(original ?? "").match(QUOTED_RE) || [];
+  return [...new Set(quotes.filter((q) => /[;\u2014\u2015]/.test(q)))];
+}
+
+/**
+ * Split text into prose and protected spans. With `original`, quotations the
+ * author wrote are protected too, so verbatim quotes keep their punctuation.
+ */
+function splitProtected(text, original = "") {
   const source = String(text ?? "");
-  const parts = [];
+  let parts = [];
   let last = 0;
   for (const m of source.matchAll(PROTECTED_RE)) {
     if (m.index > last) parts.push({ text: source.slice(last, m.index), protected: false });
@@ -860,17 +900,30 @@ function splitProtected(text) {
     last = m.index + m[0].length;
   }
   if (last < source.length) parts.push({ text: source.slice(last), protected: false });
+
+  for (const quote of authorQuotes(original)) {
+    parts = parts.flatMap((part) => {
+      if (part.protected || !part.text.includes(quote)) return [part];
+      const pieces = part.text.split(quote);
+      return pieces.flatMap((piece, i) => {
+        const out = [];
+        if (piece) out.push({ text: piece, protected: false });
+        if (i < pieces.length - 1) out.push({ text: quote, protected: true });
+        return out;
+      });
+    });
+  }
   return parts;
 }
 
-function mapProse(text, fn) {
-  return splitProtected(text)
+function mapProse(text, fn, original = "") {
+  return splitProtected(text, original)
     .map((p) => (p.protected ? p.text : fn(p.text)))
     .join("");
 }
 
-function proseOnly(text) {
-  return splitProtected(text)
+function proseOnly(text, original = "") {
+  return splitProtected(text, original)
     .filter((p) => !p.protected)
     .map((p) => p.text)
     .join(" ");
@@ -881,17 +934,35 @@ function proseOnly(text) {
  * original text does not use it, so deliberate typography (e.g. Slovak quotes) stays.
  */
 const CHAR_FIXES = [
-  { label: "invisible characters removed", re: /[​‌‍⁠﻿­]/g, to: "" },
-  { label: "non-breaking spaces replaced", re: /[   ]/g, to: " " },
-  { label: "typographic quotes replaced", re: /[“”„‟«»]/g, to: '"' },
-  { label: "typographic apostrophes replaced", re: /[‘’‚‛]/g, to: "'" },
-  { label: "ellipsis character replaced", re: /…/g, to: "..." },
-  { label: "en dashes replaced", re: /[‐‑‒–]/g, to: "-" },
+  {
+    label: "invisible characters removed",
+    re: /[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/g,
+    to: "",
+  },
+  { label: "non-breaking spaces replaced", re: /[\u00A0\u202F\u2007]/g, to: " " },
+  {
+    label: "typographic quotes replaced",
+    re: /[\u201C\u201D\u201E\u201F\u00AB\u00BB]/g,
+    to: '"',
+  },
+  { label: "typographic apostrophes replaced", re: /[\u2018\u2019\u201A\u201B]/g, to: "'" },
+  { label: "ellipsis character replaced", re: /\u2026/g, to: "..." },
+  { label: "en dashes replaced", re: /[\u2010\u2011\u2012\u2013]/g, to: "-" },
   { label: "Markdown bold removed", re: /\*\*(?=\S)([^*\n]+?)\*\*/g, to: "$1" },
 ];
 
+const EM_DASH_RE = /[\u2014\u2015]/g;
+
 /** Emoji, arrows, bullets and check marks. */
-const SYMBOL_RE = /[\p{Extended_Pictographic}→←↔⇒•▪●✓✔]/gu;
+const SYMBOL_RE =
+  /[\p{Extended_Pictographic}\u2192\u2190\u2194\u21D2\u2022\u25AA\u25CF\u2713\u2714]/gu;
+
+/** Compare wording without diacritics: people often type "v dnesnej dobe". */
+function foldDiacritics(text) {
+  return String(text ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+}
 
 /** Stock AI words and phrases (EN / SK / CS). Flagged only when the original does not use them. */
 const AI_PHRASES = [
@@ -920,16 +991,47 @@ const AI_PHRASES = [
   "nedíln\\p{L}* součást\\p{L}*", "hraje\\p{L}* (?:klíčovou|zásadní|důležitou) roli",
   "prostřednictvím", "zrealizova\\p{L}*", "stojí za zmínku", "ponoři\\p{L}* se",
   "na (?:vyšší|novou) úroveň",
-].map((p) => new RegExp(`(?<![\\p{L}\\p{N}])(?:${p})(?![\\p{L}\\p{N}])`, "giu"));
+].map(
+  (p) => new RegExp(`(?<![\\p{L}\\p{N}])(?:${foldDiacritics(p)})(?![\\p{L}\\p{N}])`, "giu")
+);
 
 function countMatches(re, text) {
   re.lastIndex = 0;
   return (String(text).match(re) || []).length;
 }
 
+function editDistance(a, b, limit) {
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    const row = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + cost);
+      if (row[j] < best) best = row[j];
+    }
+    if (best > limit) return limit + 1;
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+/** True when the original already has this wording, apart from a typo or two. */
+function authorNearlyWrote(phrase, foldedOriginal) {
+  const target = phrase.toLowerCase();
+  const limit = target.length <= 6 ? 1 : 2;
+  const words = foldedOriginal.toLowerCase().match(/[\p{L}\p{N}'-]+/gu) || [];
+  const size = target.split(/\s+/).length;
+  for (let i = 0; i + size <= words.length; i += 1) {
+    if (editDistance(words.slice(i, i + size).join(" "), target, limit) <= limit) return true;
+  }
+  return false;
+}
+
 /**
  * Inspect a model result against the original selection.
- * @returns {{ text: string, fixed: string[], problems: { id: string, label: string, samples: string[] }[] }}
+ * @returns {{ text: string, fixed: string[], problems: { id: string, label: string, count: number, samples: string[] }[] }}
  *   text: result with safe character fixes applied; fixed: labels of those fixes;
  *   problems: issues that need a model repair (or the punctuation fallback).
  */
@@ -941,23 +1043,27 @@ function reviewText(corrected, original, mode = "grammar", language = "") {
   for (const rule of CHAR_FIXES) {
     if (countMatches(rule.re, source) > 0) continue;
     const before = text;
-    text = mapProse(text, (s) => s.replace(rule.re, rule.to));
+    text = mapProse(text, (s) => s.replace(rule.re, rule.to), source);
     if (text !== before) fixed.push(rule.label);
   }
 
-  const prose = proseOnly(text);
-  const sourceProse = proseOnly(source);
+  const prose = proseOnly(text, source);
   const problems = [];
 
-  const dashes = countMatches(/[—―]/g, prose);
+  const dashes = countMatches(EM_DASH_RE, prose);
   if (dashes > 0) {
-    problems.push({ id: "em-dash", label: `em dashes (${dashes})`, samples: ["—"] });
+    problems.push({ id: "em-dash", label: `em dashes (${dashes})`, count: dashes, samples: ["\u2014"] });
   }
   // Greek uses ";" as its question mark.
   if (String(language).toLowerCase() !== "el") {
     const semicolons = countMatches(/;/g, prose);
     if (semicolons > 0) {
-      problems.push({ id: "semicolon", label: `semicolons (${semicolons})`, samples: [";"] });
+      problems.push({
+        id: "semicolon",
+        label: `semicolons (${semicolons})`,
+        count: semicolons,
+        samples: [";"],
+      });
     }
   }
 
@@ -968,23 +1074,33 @@ function reviewText(corrected, original, mode = "grammar", language = "") {
     problems.push({
       id: "symbols",
       label: `added symbols (${addedSymbols.join(" ")})`,
+      count: addedSymbols.length,
       samples: addedSymbols,
     });
   }
 
   if (mode !== "translate") {
+    // Compare without diacritics, and forgive typos, so the author's own words
+    // ("v dnesnej dobe", "furthremore") are never reported as added AI wording.
+    const foldedProse = foldDiacritics(prose);
+    const foldedSource = foldDiacritics(proseOnly(source));
+    const sameLength = foldedProse.length === prose.length;
     const phrases = [];
     for (const re of AI_PHRASES) {
-      if (countMatches(re, prose) > countMatches(re, sourceProse)) {
-        re.lastIndex = 0;
-        const sample = (prose.match(re)?.[0] || "").toLowerCase();
-        if (sample && !phrases.includes(sample)) phrases.push(sample);
-      }
+      if (countMatches(re, foldedProse) <= countMatches(re, foldedSource)) continue;
+      re.lastIndex = 0;
+      const match = re.exec(foldedProse);
+      if (!match || authorNearlyWrote(match[0], foldedSource)) continue;
+      const sample = (
+        sameLength ? prose.slice(match.index, match.index + match[0].length) : match[0]
+      ).toLowerCase();
+      if (!phrases.includes(sample)) phrases.push(sample);
     }
     if (phrases.length > 0) {
       problems.push({
         id: "phrases",
         label: `stock AI wording (${phrases.slice(0, 6).join(", ")})`,
+        count: phrases.length,
         samples: phrases,
       });
     }
@@ -993,10 +1109,14 @@ function reviewText(corrected, original, mode = "grammar", language = "") {
   return { text, fixed, problems };
 }
 
+function problemWeight(problems) {
+  return problems.reduce((sum, p) => sum + (p.count || 1), 0);
+}
+
 function buildRepairInstruction(problems) {
   const lines = problems.map((p) => {
     if (p.id === "em-dash") {
-      return "- It contains em dashes (—). Replace every one with a comma, period, parentheses, or a small sentence change.";
+      return "- It contains em dashes (\u2014). Replace every one with a comma, period, parentheses, or a small sentence change.";
     }
     if (p.id === "semicolon") {
       return "- It contains semicolons. Replace every one with a period or comma, or split the sentence.";
@@ -1015,28 +1135,62 @@ function buildRepairInstruction(problems) {
   ].join("\n");
 }
 
-/** Last resort when the repair pass still left em dashes or semicolons in prose. */
-function applyPunctuationFallback(text, language = "") {
+/** A semicolon between short items reads as a list (comma); between clauses, as a full stop. */
+function replaceSemicolons(segment) {
+  const wordCount = (s) => (s.trim().match(/\S+/g) || []).length;
+  return segment.replace(/[ \t]*;([ \t]*)([^\s;]*)/g, (match, gap, nextWord, offset, whole) => {
+    const rest = whole.slice(offset + match.length);
+    if (!nextWord) {
+      // End of the line or of this prose span: close the sentence, keep the spacing.
+      return `.${gap}`;
+    }
+    const before = whole.slice(0, offset);
+    const previousClause = before.slice(
+      Math.max(before.lastIndexOf("."), before.lastIndexOf(";"), before.lastIndexOf("!"),
+        before.lastIndexOf("?"), before.lastIndexOf("\n")) + 1
+    );
+    const nextClause = (nextWord + rest).split(/[.;!?\n]/)[0];
+    const previousWords = wordCount(previousClause);
+    const isList =
+      /^\d/.test(nextWord) ||
+      previousWords <= 2 ||
+      (previousWords <= 3 && wordCount(nextClause) <= 2);
+    if (isList) return `, ${nextWord}`;
+    // Capitalise plain lowercase words only ("we" -> "We", but "iPhone" stays).
+    const capitalised =
+      nextWord === nextWord.toLowerCase()
+        ? nextWord.charAt(0).toLocaleUpperCase() + nextWord.slice(1)
+        : nextWord;
+    return `. ${capitalised}`;
+  });
+}
+
+/**
+ * Last resort when the repair pass still left em dashes or semicolons in prose.
+ * `original` keeps the author's own quotations untouched.
+ */
+function applyPunctuationFallback(text, language = "", original = "") {
   const input = String(text ?? "");
   const fixed = [];
-  let out = mapProse(input, (s) =>
-    s
-      // Dialogue or list dash at the start of a line.
-      .replace(/(^|\n)([ \t]*)[—―][ \t]*/g, "$1$2- ")
-      // Dash right after punctuation: drop it.
-      .replace(/([,.;:!?])[ \t]*[—―][ \t]*/g, "$1 ")
-      // Dash between words or numbers.
-      .replace(/[ \t]*[—―][ \t]*/g, ", ")
+  let out = mapProse(
+    input,
+    (s) =>
+      s
+        // Number ranges: 9\u201417 -> 9-17.
+        .replace(/(\d)[ \t]*[\u2014\u2015][ \t]*(?=\d)/g, "$1-")
+        // Dialogue or list dash at the start of a line.
+        .replace(/(^|\n)([ \t]*)[\u2014\u2015][ \t]*/g, "$1$2- ")
+        // Dash right after punctuation: drop it.
+        .replace(/([,.;:!?])[ \t]*[\u2014\u2015][ \t]*/g, "$1 ")
+        // Dash between words.
+        .replace(/[ \t]*[\u2014\u2015][ \t]*/g, ", "),
+    original
   );
   if (out !== input) fixed.push("em dashes replaced");
 
   if (String(language).toLowerCase() !== "el") {
     const before = out;
-    out = mapProse(out, (s) =>
-      s.replace(/[ \t]*;[ \t]*(\S?)/g, (_m, next) =>
-        next ? `. ${next.toLocaleUpperCase()}` : "."
-      )
-    );
+    out = mapProse(out, replaceSemicolons, original);
     if (out !== before) fixed.push("semicolons replaced");
   }
   return { text: out, fixed };
@@ -1063,8 +1217,11 @@ async function handleTypeText(message, sender) {
   }
   const text = typeof message.text === "string" ? message.text.replace(/\r\n?/g, "\n") : "";
   if (!text) return { ok: false, error: "Nothing to type." };
-  if (text.length > MAX_TRANSLATED_CHARS) {
-    return { ok: false, error: "The text is too long to type." };
+  if (Array.from(text).length > MAX_TYPE_CHARS) {
+    return {
+      ok: false,
+      error: `Too long to type (over ${MAX_TYPE_CHARS} characters). Use Replace instead.`,
+    };
   }
 
   if (typeof chrome.debugger?.attach !== "function") {

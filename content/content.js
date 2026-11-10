@@ -35,6 +35,7 @@
   const MSG_RETRIES = 4;
   const QUALITY_MODEL = "grok-4.5";
   const STREAM_PORT_NAME = "gg-check-stream";
+  const MAX_TYPE_CHARS = 2500;
 
   const CSS = `
     :host, * { box-sizing: border-box; }
@@ -289,6 +290,11 @@
 
   /** @type {{ text: string, range: Range | null, editable: HTMLElement | null, start: number | null, end: number | null }} */
   let selectionState = emptySelection();
+  /**
+   * Snapshot of the selection the current result belongs to. Replace uses this,
+   * never `selectionState`, which follows whatever the user selects afterwards.
+   */
+  let checkedSelection = emptySelection();
   let loading = false;
   let debounceTimer = null;
   let toastTimer = null;
@@ -851,7 +857,10 @@
     e.preventDefault();
     e.stopPropagation();
     const mode = normalizeMode(btn.getAttribute("data-mode"));
-    const text = selectionState.text || captureSelection()?.text || "";
+    const selection = selectionState.text
+      ? selectionState
+      : captureSelection() || emptySelection();
+    const text = selection.text || "";
     const trimmed = text.trim();
     if (trimmed.length < MIN_LEN) return;
     if (text.length > MAX_SEND_CHARS) {
@@ -860,6 +869,7 @@
       );
       return;
     }
+    checkedSelection = selection;
     runCheck(mode, text);
   });
 
@@ -1128,7 +1138,7 @@
     const issues = Array.isArray(data.issues)
       ? data.issues.slice(0, MAX_ISSUES_UI)
       : [];
-    const canReplace = isWritableEditable(selectionState.editable);
+    const canReplace = isWritableEditable(checkedSelection.editable);
     const canRerun = Boolean(lastCheckRequest?.text);
     const corrected = String(data.corrected ?? "");
     correctedCache = corrected;
@@ -1255,8 +1265,11 @@
     const remaining = Array.isArray(check.remaining)
       ? check.remaining.slice(0, 6).map((s) => String(s).slice(0, 120))
       : [];
+    const reworked = Array.isArray(check.reworked)
+      ? check.reworked.slice(0, 6).map((v) => String(v).slice(0, 120))
+      : [];
     const done = [];
-    if (check.repaired) done.push("AI-style wording reworked");
+    if (reworked.length > 0) done.push(`Grok reworked ${reworked.join(", ")}`);
     done.push(...fixed);
     if (done.length > 0) {
       body.append(el("p", "gg-check", `Text check: ${done.join(", ")}.`));
@@ -1323,6 +1336,7 @@
       // Type the correction with real key events. Never falls back to a paste.
       const typedResult = await replaceByTyping(corrected);
       if (typedResult === "typed") {
+        checkedSelection = emptySelection();
         selectionState = emptySelection();
         hideToolbar();
         showToast("Typed");
@@ -1333,7 +1347,7 @@
 
     if (action === "replace") {
       if (typing) return;
-      const editable = selectionState.editable;
+      const editable = checkedSelection.editable;
       const ok = replaceSelection(corrected);
       if (ok) {
         settleSelectionAfterReplace(editable);
@@ -1345,6 +1359,7 @@
             settleSelectionAfterReplace(editable);
           }
         });
+        checkedSelection = emptySelection();
         selectionState = emptySelection();
         hideToolbar();
         showToast("Replaced");
@@ -1400,7 +1415,15 @@
    * @returns {Promise<"typed" | "cancelled" | "failed">}
    */
   async function replaceByTyping(text) {
-    const editable = selectionState.editable;
+    if (Array.from(String(text || "")).length > MAX_TYPE_CHARS) {
+      showToast(
+        `Too long to type (over ${MAX_TYPE_CHARS} characters). Use Replace instead.`,
+        true,
+        5000
+      );
+      return "failed";
+    }
+    const editable = checkedSelection.editable;
     if (!text || !isWritableEditable(editable) || !selectOriginalForTyping(editable)) {
       showToast("Could not find the original text. Use Replace or Copy.", true, 4000);
       return "failed";
@@ -1438,7 +1461,7 @@
 
   /** Focus the field and select exactly the originally checked text. */
   function selectOriginalForTyping(editable) {
-    const original = selectionState.text || "";
+    const original = checkedSelection.text || "";
     if (!original) return false;
 
     if (isWritableTextField(editable)) {
@@ -1468,8 +1491,8 @@
   /** Where the original selection sits in an input/textarea now (or null). */
   function locateInTextControl(el, original) {
     const value = el.value;
-    const start = selectionState.start;
-    const end = selectionState.end;
+    const start = checkedSelection.start;
+    const end = checkedSelection.end;
     if (typeof start === "number" && typeof end === "number" && value.slice(start, end) === original) {
       return { start, end };
     }
@@ -1486,8 +1509,8 @@
    */
   function replaceSelection(replacement) {
     const text = String(replacement ?? "");
-    const original = selectionState.text || "";
-    const editable = selectionState.editable;
+    const original = checkedSelection.text || "";
+    const editable = checkedSelection.editable;
 
     if (isWritableTextField(editable)) {
       return replaceInTextControl(editable, text, original);
@@ -1599,8 +1622,8 @@
 
   function replaceInTextControl(el, text, original) {
     const value = el.value;
-    let start = selectionState.start;
-    let end = selectionState.end;
+    let start = checkedSelection.start;
+    let end = checkedSelection.end;
 
     // 1) Stored offsets still point at the original slice
     if (
@@ -1711,9 +1734,9 @@
   }
 
   function restoreRange() {
-    if (!selectionState.range) return null;
+    if (!checkedSelection.range) return null;
     try {
-      const range = selectionState.range.cloneRange();
+      const range = checkedSelection.range.cloneRange();
       const sel = window.getSelection();
       sel.removeAllRanges();
       sel.addRange(range);
@@ -1790,10 +1813,10 @@
   function replaceInRichEditable(editable, text, original) {
     const root =
       editable ||
-      (selectionState.range?.commonAncestorContainer
-        ? selectionState.range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
-          ? selectionState.range.commonAncestorContainer
-          : selectionState.range.commonAncestorContainer.parentElement
+      (checkedSelection.range?.commonAncestorContainer
+        ? checkedSelection.range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+          ? checkedSelection.range.commonAncestorContainer
+          : checkedSelection.range.commonAncestorContainer.parentElement
         : null);
 
     if (root && typeof root.focus === "function") {

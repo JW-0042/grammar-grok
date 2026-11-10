@@ -5,6 +5,22 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.2] — 2026-11-10
+
+### Fixed
+
+- **Replace could overwrite the wrong text.** If you selected other text while a result was open, Replace and Replace by typing acted on that new selection. They now always act on the text that was checked.
+- **Emoticons were damaged by the text check.** `;)`, `;-)` and similar are no longer treated as semicolons.
+- **Your own words were reported as AI wording** when you typed them without diacritics ("v dnesnej dobe") or with a typo ("furthremore"). The check now compares without diacritics and forgives small typos.
+- **Punctuation fallback:** number ranges keep a hyphen (9-17), short items separated by semicolons become a comma list, mixed-case words such as iPhone are not capitalised, and quotations you wrote yourself, Windows paths and Unix paths are left untouched.
+- **Replace by typing is limited to 2500 characters.** Longer texts could be cut off when Chrome stops the service worker after about five minutes. The panel now says so and suggests Replace.
+- The panel no longer says "Suggestions" when the result equals your text, and the text check line names what Grok actually reworked.
+
+### Changed
+
+- A repair request is kept only when it reduces the reported problems.
+- Invisible characters in `background.js` are written as `\u` escapes, guarded by a test.
+
 ## [1.3.1] — 2026-11-09
 
 ### Changed
@@ -176,7 +192,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.3.1]: https://github.com/JW-0042/grammar-grok/compare/v1.3.0...HEAD
+[1.3.2]: https://github.com/JW-0042/grammar-grok/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/JW-0042/grammar-grok/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/JW-0042/grammar-grok/compare/68bc477...v1.3.0
 [1.2.0]: https://github.com/JW-0042/grammar-grok/compare/v1.1.8...68bc477
 [1.1.8]: https://github.com/JW-0042/grammar-grok/compare/44b9d18...v1.1.8

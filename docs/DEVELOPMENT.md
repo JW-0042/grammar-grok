@@ -1,6 +1,6 @@
 # Development
 
-**Current version: 1.3.1**
+**Current version: 1.3.2**
 
 ## Stack
 
@@ -115,6 +115,8 @@ Keep these in sync when releasing:
 - [ ] Selecting text in a password field never shows the toolbar  
 - [ ] **Replace by typing**: the original span is selected again and the correction is typed over it; works in `<textarea>`, plain `contenteditable`, and X; a click or Escape stops it; Chrome's debugging bar disappears afterwards  
 - [ ] **Replace**: one-step replacement, no debugging bar  
+- [ ] Select other text while a result is open, then Replace: only the originally checked text changes (**1.3.2**)  
+- [ ] Text with `;)` keeps the emoticon  
 - [ ] No API key string in repo  
 
 ## Releasing

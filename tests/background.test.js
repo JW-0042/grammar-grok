@@ -315,7 +315,7 @@ test("text check fixes added typography but keeps the author's own", () => {
   const { context } = loadBackground(async () => validModelResponse());
 
   const added = context.reviewText(
-    "Don’t say “hi”… ok – fine now​ **bold**",
+    "Don’t say “hi”… ok – fine\u00A0now\u200B **bold**",
     "dont say \"hi\"... ok - fine now bold"
   );
   assert.equal(added.text, "Don't say \"hi\"... ok - fine now bold");
@@ -725,4 +725,150 @@ test("human typing delays stay within a fast typist's range", () => {
     const sentence = context.humanDelay(".", " ");
     assert.ok(sentence >= 185 && sentence <= 1200, `sentence delay ${sentence}`);
   }
+});
+
+test("emoticons, paths and the author's own quotations are left alone", () => {
+  const { context } = loadBackground(async () => validModelResponse());
+
+  const smile = context.reviewText("Sounds good ;) see you ;-) bye ;D", "sounds good ;) see you ;-) bye ;D");
+  assert.equal(smile.problems.length, 0);
+  assert.equal(
+    context.applyPunctuationFallback("Sounds good ;) see you ;-)", "en").text,
+    "Sounds good ;) see you ;-)"
+  );
+
+  const paths = context.reviewText(
+    "Open C:\\Users\\me; then /usr/local/bin;",
+    "open C:\\Users\\me; then /usr/local/bin;"
+  );
+  // Only the semicolon after the Unix path is prose.
+  assert.equal(paths.problems.find((p) => p.id === "semicolon").count, 1);
+
+  const original = "he wrote: \"wait <DASH> what?\" and left <DASH> fast".replaceAll("<DASH>", "\u2014");
+  const corrected = "He wrote: \"wait <DASH> what?\" and left <DASH> fast.".replaceAll("<DASH>", "\u2014");
+  assert.equal(context.reviewText(corrected, original).problems.find((p) => p.id === "em-dash").count, 1);
+  assert.equal(
+    context.applyPunctuationFallback(corrected, "en", original).text,
+    "He wrote: \"wait \u2014 what?\" and left, fast."
+  );
+});
+
+test("the author's own wording is not reported as AI wording", () => {
+  const { context } = loadBackground(async () => validModelResponse());
+
+  // Typed without diacritics, corrected with them.
+  const slovak = context.reviewText(
+    "V dne\u0161nej dobe to rie\u0161ime prostredn\u00EDctvom aplik\u00E1cie.",
+    "v dnesnej dobe to riesime prostrednictvom aplikacie",
+    "grammar",
+    "sk"
+  );
+  assert.equal(slovak.problems.length, 0);
+
+  // Typos fixed in words the author chose.
+  const typos = context.reviewText(
+    "Furthermore, we leverage the tool.",
+    "furthremore we leverege the tool"
+  );
+  assert.equal(typos.problems.length, 0);
+
+  // Wording the author never used is still reported, with its diacritics.
+  const added = context.reviewText(
+    "Navy\u0161e to zohr\u00E1va k\u013E\u00FA\u010Dov\u00FA \u00FAlohu.",
+    "navyse to ma velku ulohu",
+    "style",
+    "sk"
+  );
+  assert.deepEqual([...added.problems.find((p) => p.id === "phrases").samples], [
+    "zohr\u00E1va k\u013E\u00FA\u010Dov\u00FA \u00FAlohu",
+  ]);
+});
+
+test("punctuation fallback keeps ranges, lists and mixed-case words intact", () => {
+  const { context } = loadBackground(async () => validModelResponse());
+  const fix = (text) => context.applyPunctuationFallback(text, "en").text;
+
+  assert.equal(fix("Open 9\u201417, pages 3 \u2014 5."), "Open 9-17, pages 3-5.");
+  assert.equal(fix("Buy milk; eggs; iPhone case."), "Buy milk, eggs, iPhone case.");
+  assert.equal(fix("Sizes: 10; 20; 30"), "Sizes: 10, 20, 30");
+  assert.equal(
+    fix("We met at noon; the others came later; nobody minded."),
+    "We met at noon. The others came later. Nobody minded."
+  );
+  assert.equal(fix("Note; `a;b` works"), "Note. `a;b` works");
+});
+
+test("a result equal to the original is not shown as a change", async () => {
+  const { listener } = loadBackground(async () =>
+    // The model claims a change, but only curled the quotes, which the check reverts.
+    modelResponse({ hasChanges: true, corrected: "He said \u201Chello\u201D." })
+  );
+  const result = await send(listener, {
+    type: "CHECK_TEXT",
+    mode: "grammar",
+    text: 'He said "hello".',
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.data.corrected, 'He said "hello".');
+  assert.equal(result.data.hasChanges, false);
+});
+
+test("the text check names only what the repair really fixed", async () => {
+  let calls = 0;
+  const { listener } = loadBackground(async () => {
+    calls += 1;
+    return calls === 1
+      ? modelResponse({ corrected: "Furthermore, it works \u2014 mostly." })
+      : modelResponse({ corrected: "Furthermore, it works, mostly." });
+  });
+  const result = await send(listener, {
+    type: "CHECK_TEXT",
+    mode: "style",
+    text: "also it works mostly",
+  });
+
+  assert.equal(result.data.corrected, "Furthermore, it works, mostly.");
+  assert.equal(result.data.textCheck.repaired, true);
+  assert.deepEqual([...result.data.textCheck.reworked], ["em dashes (1)"]);
+  assert.deepEqual([...result.data.textCheck.remaining], ["stock AI wording (furthermore)"]);
+});
+
+test("a repair that does not help is discarded", async () => {
+  let calls = 0;
+  const { listener } = loadBackground(async () => {
+    calls += 1;
+    return calls === 1
+      ? modelResponse({ corrected: "It works \u2014 mostly." })
+      : modelResponse({ corrected: "Totally different \u2014 text." });
+  });
+  const result = await send(listener, { type: "CHECK_TEXT", mode: "grammar", text: "it works mostly" });
+
+  assert.equal(result.data.corrected, "It works, mostly.");
+  assert.equal(result.data.textCheck.repaired, false);
+  assert.equal(result.data.textCheck.reworked.length, 0);
+});
+
+test("Replace by typing refuses texts that would outlast the service worker", async () => {
+  const debuggerApi = makeDebugger();
+  const { listener } = loadTyping({ debuggerApi });
+
+  const tooLong = await send(listener, { type: "TYPE_TEXT", text: "a".repeat(2501) });
+  assert.equal(tooLong.ok, false);
+  assert.match(tooLong.error, /too long to type/i);
+  assert.equal(debuggerApi.attached.length, 0);
+
+  // Even the longest allowed text stays well under five minutes at typing speed.
+  const { context } = loadBackground(async () => validModelResponse());
+  let worst = 0;
+  for (let run = 0; run < 5; run += 1) {
+    let total = 0;
+    for (let i = 0; i < 2500; i += 1) total += context.humanDelay("a", "b");
+    worst = Math.max(worst, total);
+  }
+  assert.ok(worst < 240000, `2500 characters took ${Math.round(worst / 1000)} s`);
+});
+
+test("background.js has no invisible literal characters", () => {
+  const invisible = /[\u200B\u200C\u200D\u2060\uFEFF\u00AD\u00A0\u202F\u2007]/;
+  assert.equal(invisible.test(backgroundSource), false);
 });

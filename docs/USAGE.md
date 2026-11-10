@@ -1,6 +1,6 @@
 # Usage guide
 
-**Current version: 1.3.1**
+**Current version: 1.3.2**
 
 ## Everyday flow
 
@@ -46,14 +46,14 @@ Every result goes through an automatic check before it is shown:
 | Emoji, arrows, or bullets your original does not use | Grok gets one repair request |
 | Stock AI words or phrases your original does not use (for example *furthermore*, *leverage*, *v dnešnej dobe*, *prostredníctvom*, *nedílnou součástí*) | Grok gets one repair request (Grammar and Grammar + Style) |
 
-Code in backticks, URLs, e-mail addresses, and HTML entities are never changed. Greek keeps `;` because it is the Greek question mark. The panel shows a green **Text check** line with what was fixed, and a yellow **Please review** line if something could not be fixed automatically. A repair request costs one extra API call and is made only when needed.
+Code in backticks, URLs, e-mail addresses, file paths, HTML entities, emoticons such as `;)`, and quotations you wrote yourself are never changed. Words you typed without diacritics or with a typo count as your own and are not reported as AI wording. Greek keeps `;` because it is the Greek question mark. The panel shows a green **Text check** line with what was fixed, and a yellow **Please review** line if something could not be fixed automatically. A repair request costs one extra API call and is made only when needed.
 
 ## Copy vs Replace
 
 | Action | Behavior |
 |--------|----------|
 | **Copy** | Puts the full corrected or translated text on the clipboard |
-| **Replace** | Swaps **only the text you selected** with the result in one step. Text before/after the selection in the same box stays put (**1.1.2+**) |
+| **Replace** | Swaps **only the text you checked** with the result in one step, even if you selected something else afterwards (**1.3.2**). Text before/after the selection in the same box stays put (**1.1.2+**) |
 | **Replace by typing** | Types the result over your selection key by key, like a person (**1.3.0+**, own button since **1.3.1**) |
 | **Redo** | Runs the same check again with your **saved** popup model |
 | **Grok 4.5** | One-time recheck with Grok 4.5 when the fast model result is not good enough (does **not** change your saved model) |
@@ -62,7 +62,7 @@ Code in backticks, URLs, e-mail addresses, and HTML entities are never changed. 
 
 **Replace by typing** selects your original text again and types the correction over it key by key, with short human-like pauses. Sites such as X see ordinary typing, not a paste. Plain **Replace** does the same swap in one step.
 
-- Typing speed is that of a fast typist: roughly 10 to 20 seconds for a 280-character post.
+- Typing speed is that of a fast typist: roughly 10 to 20 seconds for a 280-character post. Texts over 2500 characters are not typed; use **Replace** for those.
 - While it types, Chrome shows a bar saying Grammar Grok started debugging the browser. That is Chrome's standard notice for real key events. It disappears when typing ends.
 - **Click anywhere on the page or press Escape to stop.** Clicking Cancel on Chrome's bar stops it too. **Ctrl+Z** undoes the typed text.
 - Do not switch tabs or windows while it types.

@@ -1,6 +1,6 @@
 # Security Policy
 
-**Project version:** documented releases through **1.3.1** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
+**Project version:** documented releases through **1.3.2** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
 
 ## Reporting a vulnerability
 

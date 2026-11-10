@@ -3,12 +3,12 @@
 **Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, or **Translate to EN**, and get a structured result with automatic source-language detection.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.1-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.3.2-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
-**Current version: [1.3.1](CHANGELOG.md)** — separate **Replace by typing** button that types the correction like a person instead of pasting it. Since 1.2.0: automatic text check against AI-style characters and wording, plain everyday writing, live streaming preview.
+**Current version: [1.3.2](CHANGELOG.md)** — bug-fix release: Replace always acts on the checked text, and the text check no longer touches emoticons or your own wording. Since 1.3.1: separate **Replace by typing** button. Since 1.2.0: automatic text check against AI-style characters and wording, plain everyday writing, live streaming preview.
 
 ---
 
@@ -59,7 +59,7 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Confirm version **1.3.1** on the extension card
+4. Confirm version **1.3.2** on the extension card
 5. Open the extension popup → paste API key → **Save**  
 6. Optional: **Test connection**
 
@@ -81,7 +81,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.3.1**) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.3.2**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
 | [docs/USAGE.md](docs/USAGE.md) | Everyday use, proofreading, translation, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
@@ -96,7 +96,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.3.1)
+├── manifest.json          # Chrome MV3 manifest (v1.3.2)
 ├── background.js          # Service worker: xAI API, validation, prompts, PING
 ├── content/
 │   └── content.js         # Selection toolbar, result panel, replace, retries
@@ -152,6 +152,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
+| **1.3.2** | Fixes: Replace acts on the checked text; emoticons, own wording, ranges, lists and quotations survive the text check; typing limited to 2500 characters |
 | **1.3.1** | Separate **Replace by typing** button; plain Replace is one step again; popup switch removed, explanation kept in How to use |
 | **1.3.0** | Replace types the correction like a human with real key events (debugger permission, popup switch, click or Escape stops) |
 | **1.2.0** | Automatic AI-text check with one repair pass, plain writing in all modes, live streaming preview, CI, password fields excluded, trusted-click and sender hardening |
