@@ -1,6 +1,6 @@
 # Architecture
 
-**Current version: 1.3.2**
+**Current version: 1.4.0**
 
 Grammar Grok is a **Chrome Manifest V3** extension with three runtime parts.
 
@@ -41,7 +41,7 @@ The content script **never** receives or stores the API key. Pages you visit can
 ## Data flow (one check)
 
 1. User selects text on an `http(s)` page (top frame or nested frame).  
-2. Content script shows a **fixed top toolbar**: Grammar | Grammar + Style | Translate to EN.
+2. Content script shows a **fixed top toolbar** built from the user's settings (default: Grammar | Grammar + Style | Quick check | Translate to CZ | Translate to EN). It gets them with `GET_UI_CONFIG`, because content scripts do not read storage; the same message wakes the service worker.
 3. Content script may **PING** the service worker to wake it (MV3).  
 4. On mode click, content script opens a `gg-check-stream` port and sends `{ type: "CHECK_TEXT", mode, text }`. If the port fails before any progress, it falls back to the one-shot `sendMessage` with retries.  
 5. Background validates sender, mode, text length, API key, and model allowlist.  
@@ -73,9 +73,12 @@ All three modes share `HUMAN_WRITING_RULES` (plain everyday wording, nothing mor
 |------|----------------|
 | `grammar` | Spelling, grammar, punctuation, diacritics only |
 | `style` | Grammar + clarity, flow, word choice (same meaning) |
-| `translate` | Translate the selection into English; `corrected` is the English text |
+| `quick` | The `style` prompt, without the final text check (one request, `textCheck: null`) |
+| `translate` | Translate into `target` (a code from `shared/languages.js`, English if unknown); `corrected` is the translation |
 
-Language is **auto-detected** by the model (English, Czech, Slovak, and others). `translate` reports the source language and writes English into `corrected`.
+Language is **auto-detected** by the model (English, Czech, Slovak, and others). `translate` reports the source language and writes the target language into `corrected`. The panel's **Translate result to** buttons run `translate` on the current result; `checkedSelection` is unchanged, so Replace still targets the original span.
+
+`shared/languages.js` is loaded by the service worker (`importScripts`), the content script (listed before `content/content.js` in the manifest) and the popup. It defines the language catalog, the default toolbar and translation languages, and the sanitizers every side applies to stored settings (`toolbarItems`, `translateLanguages`).
 
 ## Replace by typing (1.3.0+, own button since 1.3.1)
 
@@ -141,9 +144,10 @@ See also [SECURITY.md](../SECURITY.md).
 
 | File | Responsibility |
 |------|----------------|
-| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.3.2**) |
+| `manifest.json` | MV3 entry points, permissions, content scripts (**v1.4.0**) |
 | `background.js` | Grammar/style/translation prompts, fetch, response validation, settings, `PING` / `CHECK_TEXT` / `TEST_KEY` |
-| `content/content.js` | Selection UX (mouse + keyboard), three-action toolbar, Shadow DOM UI, messaging retries, replace / redo logic |
+| `shared/languages.js` | Language catalog, toolbar items and settings sanitizers shared by all three parts |
+| `content/content.js` | Selection UX (mouse + keyboard), configurable toolbar, Shadow DOM UI, messaging retries, replace / redo logic |
 | `popup/popup.html` / `.js` / `.css` | Configure key & model |
 | `icons/` | 16 / 48 / 128 PNG icons |
 | `tests/background.test.js` | Regression tests for translation, validation, output limits, and request concurrency |

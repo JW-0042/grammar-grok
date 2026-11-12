@@ -1,6 +1,6 @@
 # Security Policy
 
-**Project version:** documented releases through **1.3.2** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
+**Project version:** documented releases through **1.4.0** (see [CHANGELOG.md](CHANGELOG.md)). Security design notes below apply to the current main branch.
 
 ## Reporting a vulnerability
 
@@ -25,7 +25,7 @@ We will try to respond within a reasonable time and coordinate a fix before publ
 | Data | Where it goes |
 |------|----------------|
 | xAI API key | Stored only in your browser (`chrome.storage.local`). Never sent anywhere except as `Authorization: Bearer` to `https://api.x.ai`. |
-| Selected text | Sent to `https://api.x.ai` **only when you choose** Grammar, Grammar + Style, or Translate to EN. |
+| Selected text | Sent to `https://api.x.ai` **only when you click** a toolbar action or a panel action such as Translate result to. |
 | Analytics | **None.** No telemetry, no third-party trackers. |
 
 ## What is **not** in this repository

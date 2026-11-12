@@ -1,6 +1,6 @@
 # Usage guide
 
-**Current version: 1.3.2**
+**Current version: 1.4.0**
 
 ## Everyday flow
 
@@ -9,11 +9,13 @@
    You may select the **whole field** or only **part** of a sentence — with the mouse **or** keyboard (**Ctrl+A / Cmd+A**, Shift+arrows, etc.).  
 3. A compact bar appears **fixed at the top center** of the window:
    - **Grammar** — fix mistakes and apply the wording rules below with minimal edits; keep your voice
-   - **Grammar + Style** — also improve clarity and flow  
-   - **Translate to EN** — translate the selection into English
+   - **Grammar + Style** — also improve clarity and flow
+   - **Quick check** — Grammar + Style without the final AI text check (faster)
+   - **Translate to CZ** / **Translate to EN** — translate the selection
+   You choose which buttons appear in the popup (**1.4.0**).
 4. Wait for the result panel (right side). The result appears there live while Grok writes it.  
 5. Read the source-language badge, summary, corrected or translated text, and issue list.
-6. **Copy** the result, or **Replace** when the selection is in an editable field.
+6. **Copy** the result, or **Replace** when the selection is in an editable field. **Translate result to** SK / CZ / EN translates the result first.
 
 ### Tips
 
@@ -29,7 +31,8 @@
 |------|----------|
 | Grammar | You want correctness and minimal edits for the wording rules below |
 | Grammar + Style | You also want smoother, clearer wording without changing meaning |
-| Translate to EN | The selection is in another language and you want a fluent English version |
+| Quick check | Like Grammar + Style, but faster: one request and no final AI text check |
+| Translate to CZ / EN | You want the selection in that language. More target languages can be added in the popup |
 
 All modes use common everyday words and simple sentences, and avoid stock AI phrasing, filler, and unnecessary formality. Grok must not introduce words or constructions more complex or formal than your original. Words you already used may stay.
 
@@ -98,11 +101,13 @@ Click the extension icon:
 | xAI API key | From [console.x.ai](https://console.x.ai). Stored only on this device. |
 | Model | Empty-storage default `grok-4.5`. The popup marks **grok-4.20 non-reasoning** as recommended. Also `grok-4.7`, `grok-4.6`, `grok-4.3`, and grok-4.20 reasoning. Requests for grok-4.5, grok-4.6, and grok-4.7 use low reasoning effort. Grok 4.7 Fast is not available on the public API. |
 | Test connection | Small request to verify key + model. |
+| Toolbar buttons | Which actions the bar above a selection shows: Grammar, Grammar + Style, Quick check, and a Translate button per translation language. At least one stays on. Saved automatically. |
+| Translation languages | 28 languages to choose from (SK, CZ and EN by default). They appear as **Translate result to** buttons in the panel and as optional toolbar buttons. Saved automatically. |
 
 ## Limits
 
 - Max selection length: **8000** characters (cost and latency).  
-- Requests only run when you choose **Grammar**, **Grammar + Style**, or **Translate to EN** (nothing is sent while only selecting).
+- Requests only run when you click a toolbar or panel action (nothing is sent while only selecting).
 
 ## X / Twitter and other SPAs
 
@@ -112,7 +117,7 @@ Click the extension icon:
 
 ## Privacy in practice
 
-- Nothing is sent until you choose **Grammar**, **Grammar + Style**, or **Translate to EN**.
+- Nothing is sent until you click a toolbar or panel action.
 - Only the selected text (plus the mode system prompt) goes to xAI. A text-check repair resends the same text with the first result.  
 - Password fields are ignored.  
 - No analytics; the project does not phone home to the authors.

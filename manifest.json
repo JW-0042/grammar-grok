@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Grammar Grok",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "Check grammar, style, or translate to English on any page with Grok. Auto-detects English, Czech, Slovak and more.",
   "permissions": ["storage", "debugger"],
   "host_permissions": ["https://api.x.ai/*"],
@@ -29,7 +29,7 @@
         "*://chrome.google.com/webstore/*",
         "*://chromewebstore.google.com/*"
       ],
-      "js": ["content/content.js"],
+      "js": ["shared/languages.js", "content/content.js"],
       "run_at": "document_idle",
       "all_frames": true,
       "match_about_blank": true,

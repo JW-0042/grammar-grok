@@ -205,3 +205,45 @@ button.ghost:hover {
 .help li {
   margin-bottom: 4px;
 }
+
+.section-title {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.checks {
+  display: grid;
+  gap: 6px;
+}
+
+.checks.grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 400;
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.check span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}

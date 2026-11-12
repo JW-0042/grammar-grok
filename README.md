@@ -1,24 +1,26 @@
 # Grammar Grok
 
-**Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, or **Translate to EN**, and get a structured result with automatic source-language detection.
+**Proofread or translate text on any webpage with Grok** — select text, choose **Grammar**, **Grammar + Style**, **Quick check**, or a **Translate** button, and get a structured result with automatic source-language detection.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.2-purple.svg)](manifest.json)
+[![Version](https://img.shields.io/badge/version-1.4.0-purple.svg)](manifest.json)
 [![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-green.svg)](https://developer.chrome.com/docs/extensions/mv3)
 
 > **Open source (MIT).** Free to use, modify, and redistribute for any purpose — including commercial — **provided you keep the copyright notice and license** so the original project is attributed. See [LICENSE](LICENSE).
 
-**Current version: [1.3.2](CHANGELOG.md)** — bug-fix release: Replace always acts on the checked text, and the text check no longer touches emoticons or your own wording. Since 1.3.1: separate **Replace by typing** button. Since 1.2.0: automatic text check against AI-style characters and wording, plain everyday writing, live streaming preview.
+**Current version: [1.4.0](CHANGELOG.md)** — Translate to CZ, Quick check, translating the result into SK / CZ / EN (or any language you add), and a configurable toolbar. Since 1.3.2: Replace always acts on the checked text. Since 1.3.1: separate **Replace by typing** button. Since 1.2.0: automatic text check against AI-style characters and wording, plain everyday writing, live streaming preview.
 
 ---
 
 ## Features
 
 - **Select-to-check** on almost any `http` / `https` page (including nested frames) — mouse or keyboard (**Ctrl+A**)  
-- Three actions:
+- Toolbar actions (choose which ones appear in the popup, **1.4.0**):
   - **Grammar** — spelling, grammar, punctuation, diacritics, and minimal edits for the natural-wording rules
-  - **Grammar + Style** — also clarity, flow, and word choice  
-  - **Translate to EN** — translate any selected language into English
+  - **Grammar + Style** — also clarity, flow, and word choice
+  - **Quick check** — Grammar + Style without the final AI text check, faster (**1.4.0**)
+  - **Translate to EN / CZ** — translate any selected language; more target languages can be added (**1.4.0**)
+- **Translate result to** SK, CZ, EN or any configured language, right from the result panel (**1.4.0**)
 - **Auto language detection** (EN, CS, SK, …)  
 - Plain everyday writing in all modes: no stock AI phrasing, and no words more complex than the original uses (**1.2.0**)
 - **Automatic text check** (**1.2.0**): removes em dashes, semicolons, typographic quotes, invisible characters and other typical AI characters, and asks Grok once to rework stock AI words it added. Code, URLs and e-mail addresses stay untouched
@@ -35,7 +37,7 @@
 
 ## Screenshots (what to expect)
 
-1. Select text → top bar: `Grammar` | `Grammar + Style` | `Translate to EN`
+1. Select text → top bar: `Grammar` | `Grammar + Style` | `Quick check` | `Translate to CZ` | `Translate to EN`
 2. Result panel: language/model badges, corrected or translated text, issue list, Copy / Replace / Replace by typing / Redo / Grok 4.5
 
 *(UI is dark, compact, and isolated via Shadow DOM so site CSS cannot restyle it easily.)*
@@ -59,7 +61,7 @@ cd grammar-grok
 1. Open `chrome://extensions`  
 2. Enable **Developer mode**  
 3. **Load unpacked** → choose this repository folder  
-4. Confirm version **1.3.2** on the extension card
+4. Confirm version **1.4.0** on the extension card
 5. Open the extension popup → paste API key → **Save**  
 6. Optional: **Test connection**
 
@@ -68,7 +70,7 @@ Full steps: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**
 ### 3. Use it
 
 1. Select text on a webpage (full field or **part** of a sentence)  
-2. Click **Grammar**, **Grammar + Style**, or **Translate to EN**
+2. Click **Grammar**, **Grammar + Style**, **Quick check**, or a **Translate** button
 3. **Copy** or **Replace** the corrected or translated result
 
 Details: **[docs/USAGE.md](docs/USAGE.md)**
@@ -81,7 +83,7 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 | Document | Contents |
 |----------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.3.2**) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (1.0.0 → **1.4.0**) |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Install, update, uninstall, troubleshooting |
 | [docs/USAGE.md](docs/USAGE.md) | Everyday use, proofreading, translation, partial Replace, SPAs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, messaging, replace strategy, permissions |
@@ -96,8 +98,10 @@ Details: **[docs/USAGE.md](docs/USAGE.md)**
 
 ```
 grammar-grok/
-├── manifest.json          # Chrome MV3 manifest (v1.3.2)
-├── background.js          # Service worker: xAI API, validation, prompts, PING
+├── manifest.json          # Chrome MV3 manifest (v1.4.0)
+├── background.js          # Service worker: xAI API, validation, prompts, text check, typing
+├── shared/
+│   └── languages.js       # Translation languages and toolbar items (shared)
 ├── content/
 │   └── content.js         # Selection toolbar, result panel, replace, retries
 ├── popup/
@@ -128,7 +132,7 @@ No build step and no `npm` dependencies — load the folder as an unpacked exten
 | Topic | Behavior |
 |-------|----------|
 | API key | Stored in `chrome.storage.local` on **your** machine only |
-| Selected text | Sent to `https://api.x.ai` **only when you choose** Grammar, Grammar + Style, or Translate to EN |
+| Selected text | Sent to `https://api.x.ai` **only when you click** a toolbar or panel action |
 | Analytics | **None** |
 | Host access | Only `https://api.x.ai/*` |
 | Debugger | Used only after you click **Replace by typing**, only in the current tab while it types (Chrome shows a debugging bar meanwhile) |
@@ -152,6 +156,7 @@ More: [SECURITY.md](SECURITY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md
 
 | Version | Highlights |
 |---------|------------|
+| **1.4.0** | Translate to CZ, Quick check, Translate result to SK / CZ / EN, configurable toolbar and translation languages |
 | **1.3.2** | Fixes: Replace acts on the checked text; emoticons, own wording, ranges, lists and quotations survive the text check; typing limited to 2500 characters |
 | **1.3.1** | Separate **Replace by typing** button; plain Replace is one step again; popup switch removed, explanation kept in How to use |
 | **1.3.0** | Replace types the correction like a human with real key events (debugger permission, popup switch, click or Escape stops) |

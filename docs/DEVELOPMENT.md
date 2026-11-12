@@ -1,6 +1,6 @@
 # Development
 
-**Current version: 1.3.2**
+**Current version: 1.4.0**
 
 ## Stack
 
@@ -92,7 +92,10 @@ Keep these in sync when releasing:
 - [ ] Result panel has a **single** scrollbar (no nested textarea scrollbar)  
 - [ ] Deselect / click away → toolbar **disappears**  
 - [ ] Grammar mode returns structured UI  
-- [ ] **Translate to EN** returns English text; source language badge; Replace inserts translation
+- [ ] **Translate to EN / CZ** return text in that language; source language badge; Replace inserts translation  
+- [ ] **Quick check** shows the skipped-check note and makes one request  
+- [ ] **Translate result to** chips translate the result; Replace still targets the original selection  
+- [ ] Popup: toggling toolbar buttons and languages changes the bar after selecting text again
 - [ ] Leading/trailing whitespace survives Copy / Replace
 - [ ] Read-only page text does not offer Replace
 - [ ] Invalid/truncated JSON shows an error (never **Already English**)

@@ -54,6 +54,11 @@
     }
     .gg-toolbar {
       display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      /* left: 50% would cap the shrink-to-fit width at half the viewport */
+      width: max-content;
+      max-width: calc(100vw - 16px);
       align-items: center;
       gap: 2px;
       padding: 4px;
@@ -286,6 +291,21 @@
     .gg-status-line .gg-muted { margin: 0; }
     .gg-check { margin: 10px 0 0; font-size: 12px; color: #9de0a8; }
     .gg-check-warn { color: #ffcf7a; }
+    .gg-translate-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+    .gg-translate-row .gg-label { margin: 0 4px 0 0; }
+    .gg-chip {
+      border: 1px solid #3a3a5c;
+      background: #1a1a30;
+      color: #e8e4ff;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .gg-chip:hover { border-color: #7c6af7; background: #2a2a48; }
+    .gg-chip:disabled { opacity: .5; cursor: wait; }
   `;
 
   /** @type {{ text: string, range: Range | null, editable: HTMLElement | null, start: number | null, end: number | null }} */
@@ -346,20 +366,13 @@
   toolbar.className = "gg-toolbar";
   toolbar.setAttribute("role", "toolbar");
   toolbar.setAttribute("aria-label", "Grammar Grok");
-  // Build without innerHTML for static chrome (slightly safer / clearer)
-  const btnGrammar = makeModeButton("grammar", "✓", "Grammar", "Fix grammar, spelling, punctuation");
-  const sep = document.createElement("span");
-  sep.className = "gg-sep";
-  sep.setAttribute("aria-hidden", "true");
-  const btnStyle = makeModeButton("style", "✎", "Grammar + Style", "Grammar + style / clarity");
-  const sep2 = document.createElement("span");
-  sep2.className = "gg-sep";
-  sep2.setAttribute("aria-hidden", "true");
-  const btnTranslate = makeModeButton("translate", "EN", "Translate to EN", "Translate selection to English");
-  toolbar.append(btnGrammar, sep, btnStyle, sep2, btnTranslate);
   shadow.appendChild(toolbar);
 
-  const toolbarButtons = [btnGrammar, btnStyle, btnTranslate];
+  /** Toolbar buttons and panel languages; refreshed from the background (storage). */
+  let uiConfig = sanitizeUiConfig(null);
+  /** @type {HTMLButtonElement[]} */
+  let toolbarButtons = [];
+  renderToolbar();
 
   const panel = document.createElement("div");
   panel.className = "gg-panel";
@@ -413,30 +426,86 @@
 
   function normalizeMode(mode) {
     const m = String(mode || "").trim();
-    if (m === "style" || m === "translate") return m;
+    if (m === "style" || m === "quick" || m === "translate") return m;
     return "grammar";
   }
 
-  function modeLabel(mode) {
+  /** Language entry for a code from the shared catalog (English when unknown). */
+  function languageFor(code) {
+    return ggLanguage(code) || ggLanguage("en");
+  }
+
+  function modeLabel(mode, target) {
     if (mode === "style") return "Grammar + Style";
-    if (mode === "translate") return "Translate to EN";
+    if (mode === "quick") return "Quick check";
+    if (mode === "translate") return `Translate to ${languageFor(target).label}`;
     return "Grammar";
   }
 
-  function makeModeButton(mode, ico, label, title) {
+  /**
+   * Keep only toolbar items and languages the shared catalog knows, whatever the
+   * background sent. Falls back to the defaults.
+   */
+  function sanitizeUiConfig(config) {
+    const languages = ggSanitizeLanguages(
+      Array.isArray(config?.languages) ? config.languages.map((l) => l?.code) : null
+    );
+    const toolbarIds = Array.isArray(config?.toolbar) ? config.toolbar.map((i) => i?.id) : null;
+    return {
+      toolbar: ggSanitizeToolbar(toolbarIds, languages).map(ggToolbarItem),
+      languages: languages.map((code) => ggLanguage(code)),
+    };
+  }
+
+  function makeModeButton(item) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "gg-btn";
-    btn.dataset.mode = mode;
-    btn.title = title;
+    btn.dataset.mode = item.mode;
+    if (item.target) btn.dataset.target = item.target;
+    btn.title = item.title;
     const s = document.createElement("span");
     s.className = "gg-ico";
-    s.textContent = ico;
+    s.textContent = item.ico;
     s.setAttribute("aria-hidden", "true");
     const t = document.createElement("span");
-    t.textContent = label;
+    t.textContent = item.label;
     btn.append(s, t);
     return btn;
+  }
+
+  function renderToolbar() {
+    while (toolbar.firstChild) toolbar.removeChild(toolbar.firstChild);
+    toolbarButtons = [];
+    uiConfig.toolbar.forEach((item, index) => {
+      if (index > 0) {
+        const sep = document.createElement("span");
+        sep.className = "gg-sep";
+        sep.setAttribute("aria-hidden", "true");
+        toolbar.append(sep);
+      }
+      const btn = makeModeButton(item);
+      toolbarButtons.push(btn);
+      toolbar.append(btn);
+    });
+  }
+
+  /** Ask the background for the toolbar settings (this also wakes the service worker). */
+  function refreshUiConfig() {
+    if (!isRuntimeAlive()) return;
+    chrome.runtime
+      .sendMessage({ type: "GET_UI_CONFIG" })
+      .then((res) => {
+        if (!res?.ok) return;
+        const next = sanitizeUiConfig(res);
+        const changed =
+          next.toolbar.map((i) => i.id).join() !== uiConfig.toolbar.map((i) => i.id).join();
+        uiConfig = next;
+        if (changed && !loading) renderToolbar();
+      })
+      .catch(() => {
+        /* service worker asleep or reloaded; defaults stay */
+      });
   }
 
   function emptySelection() {
@@ -623,13 +692,6 @@
     throw lastErr || new Error("No response from extension background.");
   }
 
-  function pingBackground() {
-    if (!isRuntimeAlive()) return;
-    chrome.runtime.sendMessage({ type: "PING" }).catch(() => {
-      /* SW may be sleeping; CHECK_TEXT will retry */
-    });
-  }
-
   function hideToolbar() {
     toolbar.hidden = true;
     toolbar.style.display = "none";
@@ -691,8 +753,8 @@
     selectionState = cap;
     mountHost();
     revealToolbar();
-    // Wake MV3 service worker early so the check is less likely to race a cold start
-    pingBackground();
+    // Wake MV3 service worker early (and pick up changed toolbar settings)
+    refreshUiConfig();
   }
 
   function syncToolbarToSelection() {
@@ -711,6 +773,7 @@
 
   hideToolbar();
   hidePanel();
+  refreshUiConfig();
 
   document.addEventListener("mouseup", (e) => {
     if (e.button !== 0) return;
@@ -870,25 +933,27 @@
       return;
     }
     checkedSelection = selection;
-    runCheck(mode, text);
+    runCheck(mode, text, { target: btn.getAttribute("data-target") || undefined });
   });
 
   /**
    * @param {"grammar"|"style"|"translate"} mode
    * @param {string} text
-   * @param {{ model?: string, loadingHint?: string } | undefined} options
+   * @param {{ model?: string, loadingHint?: string, target?: string } | undefined} options
    */
   async function runCheck(mode, text, options = {}) {
     const seq = ++checkSeq;
     loading = true;
     setToolbarLoading(true);
-    lastCheckRequest = { mode, text };
+    const target = mode === "translate" ? languageFor(options.target).code : undefined;
+    lastCheckRequest = { mode, text, target };
     const modelOverride =
       typeof options.model === "string" && options.model.trim()
         ? options.model.trim()
         : null;
     showLoadingPanel(mode, {
       modelLabel: modelOverride || options.loadingHint || null,
+      target,
     });
 
     try {
@@ -907,6 +972,7 @@
         text,
       };
       if (modelOverride) payload.model = modelOverride;
+      if (target) payload.target = target;
 
       const res = await checkWithPreview(payload, seq);
       // Ignore stale responses if user started another check
@@ -1059,15 +1125,15 @@
     return b;
   }
 
-  function showLoadingPanel(mode, { modelLabel = null } = {}) {
+  function showLoadingPanel(mode, { modelLabel = null, target = undefined } = {}) {
     mountHost();
     clearPanel();
     revealPanel();
-    const label = modeLabel(mode);
+    const label = modeLabel(mode, target);
     const head = el("div", "gg-panel-head");
     head.append(el("span", "gg-title", "Checking…"), makeCloseBtn());
     const body = el("div", "gg-body");
-    const bits = [label, "language auto-detect"];
+    const bits = [label, mode === "translate" ? "source language auto-detect" : "language auto-detect"];
     if (modelLabel) bits.push(String(modelLabel));
     body.append(el("div", "gg-spinner"), el("p", "gg-muted center", bits.join(" · ")));
     panel.append(head, body);
@@ -1131,7 +1197,9 @@
     revealPanel();
 
     const usedMode = normalizeMode(data.mode);
-    const modeBadge = modeLabel(usedMode);
+    const target = usedMode === "translate" ? languageFor(data.target) : null;
+    const modeBadge = modeLabel(usedMode, target?.code);
+    const resultLabel = target ? `${target.name} translation` : "Corrected text";
     const lang = String(data.languageName || data.language || "Unknown").slice(0, 64);
     const modelUsed = String(data.model || "").trim();
     const sourceLanguage = String(data.language || "").trim().toLowerCase();
@@ -1150,8 +1218,8 @@
         "span",
         "gg-title",
         usedMode === "translate"
-          ? !data.hasChanges && sourceLanguage === "en"
-            ? "Already English"
+          ? !data.hasChanges && sourceLanguage === target.code
+            ? `Already ${target.name}`
             : "Translation"
           : data.hasChanges
             ? "Suggestions"
@@ -1169,15 +1237,12 @@
     if (data.summary) {
       body.append(el("p", "gg-summary", String(data.summary).slice(0, 400)));
     }
-    body.append(el("label", "gg-label", usedMode === "translate" ? "English translation" : "Corrected text"));
+    body.append(el("label", "gg-label", resultLabel));
     const ta = document.createElement("textarea");
     ta.className = "gg-corrected";
     ta.readOnly = true;
     ta.rows = 1;
-    ta.setAttribute(
-      "aria-label",
-      usedMode === "translate" ? "English translation" : "Corrected text"
-    );
+    ta.setAttribute("aria-label", resultLabel);
     ta.value = corrected;
     // Grow with content so only the panel body scrolls (no nested textarea scrollbar).
     const fitCorrected = () => {
@@ -1186,7 +1251,12 @@
     };
     body.append(ta);
     fitCorrected();
-    appendTextCheck(body, data.textCheck);
+    if (usedMode === "quick") {
+      body.append(el("p", "gg-muted", "Quick check: the final AI text check was skipped."));
+    } else {
+      appendTextCheck(body, data.textCheck);
+    }
+    appendTranslateRow(body, target?.code);
     // Second pass after layout (fonts/wrap) to avoid a short clipped first paint.
     requestAnimationFrame(fitCorrected);
 
@@ -1254,6 +1324,23 @@
     toast.hidden = true;
 
     panel.append(head, body, foot, toast);
+  }
+
+  /** "Translate result to: SK CZ EN" chips with the languages from the popup. */
+  function appendTranslateRow(body, currentTarget) {
+    const languages = uiConfig.languages.filter((l) => l.code !== currentTarget);
+    if (languages.length === 0) return;
+    const row = el("div", "gg-translate-row");
+    row.append(el("span", "gg-label", "Translate result to"));
+    for (const lang of languages) {
+      const chip = el("button", "gg-chip", lang.label);
+      chip.type = "button";
+      chip.dataset.action = "translate-result";
+      chip.dataset.target = lang.code;
+      chip.title = `Translate the result to ${lang.name}`;
+      row.append(chip);
+    }
+    body.append(row);
   }
 
   /** Short note about the automatic AI-text check (textContent only). */
@@ -1375,6 +1462,15 @@
       return;
     }
 
+    if (action === "translate-result") {
+      if (loading || typing) return;
+      const target = btn.getAttribute("data-target");
+      if (!ggLanguage(target) || !corrected.trim()) return;
+      // Replace still targets the originally checked text (checkedSelection).
+      runCheck("translate", corrected, { target });
+      return;
+    }
+
     if (action === "redo" || action === "redo-quality") {
       if (loading) return;
       const req = lastCheckRequest;
@@ -1386,10 +1482,11 @@
         runCheck(req.mode, req.text, {
           model: QUALITY_MODEL,
           loadingHint: QUALITY_MODEL,
+          target: req.target,
         });
       } else {
         // Same check again with the model saved in the extension popup.
-        runCheck(req.mode, req.text);
+        runCheck(req.mode, req.text, { target: req.target });
       }
     }
   });

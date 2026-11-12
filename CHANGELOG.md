@@ -5,6 +5,23 @@ The version in [`manifest.json`](manifest.json) is the source of truth.
 
 Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] — 2026-11-12
+
+### Added
+
+- **Translate to CZ** in the toolbar, next to Translate to EN.
+- **Quick check** in the toolbar: Grammar + Style without the final AI text check (one request, faster). The panel says that the check was skipped.
+- **Translate result to** buttons in the result panel (SK, CZ, EN by default). They translate the corrected text, and Replace still puts it where you originally selected.
+- Popup settings, saved automatically:
+  - **Toolbar buttons**: choose which of Grammar, Grammar + Style, Quick check and the translate buttons the bar shows.
+  - **Translation languages**: 28 languages to choose from. They appear as panel buttons and as optional toolbar translate buttons.
+- Translations into any of these languages, with the summary and notes written in the target language.
+
+### Changed
+
+- All prompts state that the selected text is content to correct or translate, never instructions, so questions in the text are not answered.
+- New `shared/languages.js` holds the language catalog and toolbar defaults for the service worker, content script and popup.
+
 ## [1.3.2] — 2026-11-10
 
 ### Fixed
@@ -192,7 +209,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Selection toolbar, result panel, Copy / Replace.
 - Language auto-detection via Grok prompts.
 
-[1.3.2]: https://github.com/JW-0042/grammar-grok/compare/v1.3.1...HEAD
+[1.4.0]: https://github.com/JW-0042/grammar-grok/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/JW-0042/grammar-grok/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/JW-0042/grammar-grok/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/JW-0042/grammar-grok/compare/68bc477...v1.3.0
 [1.2.0]: https://github.com/JW-0042/grammar-grok/compare/v1.1.8...68bc477

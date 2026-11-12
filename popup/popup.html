@@ -55,6 +55,24 @@
       </p>
     </section>
 
+    <section class="card">
+      <span class="section-title">Toolbar buttons</span>
+      <div id="toolbarItems" class="checks"></div>
+      <p class="hint">
+        What the bar above a selection shows. <strong>Quick check</strong> skips the final
+        AI text check, so it is faster. Saved automatically.
+      </p>
+    </section>
+
+    <section class="card">
+      <span class="section-title">Translation languages</span>
+      <div id="languages" class="checks grid"></div>
+      <p class="hint">
+        Offered as "Translate result to" buttons in the result panel and as translate
+        buttons for the toolbar above. Saved automatically.
+      </p>
+    </section>
+
     <div class="actions">
       <button type="button" id="save" class="primary">Save</button>
       <button type="button" id="test" class="secondary">Test connection</button>
@@ -66,7 +84,7 @@
       <ol>
         <li>Select text on any website</li>
         <li>
-          Choose <strong>Grammar</strong>, <strong>Grammar + Style</strong>, or <strong>Translate to EN</strong>
+          Choose <strong>Grammar</strong>, <strong>Grammar + Style</strong>, <strong>Quick check</strong>, or a <strong>Translate</strong> button
         </li>
         <li>Copy the result, or put it back into the field</li>
       </ol>
@@ -80,10 +98,15 @@
         Escape to stop, and Ctrl+Z undoes it.
       </p>
       <p class="hint">
+        <strong>Translate result to</strong> in the panel translates the corrected text
+        into another language. Replace still puts it back where you selected.
+      </p>
+      <p class="hint">
         Language is detected automatically (EN, CS, SK, …).
       </p>
     </section>
 
+    <script src="../shared/languages.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

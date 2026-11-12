@@ -24,6 +24,7 @@ jobs:
           node --check background.js
           node --check content/content.js
           node --check popup/popup.js
+          node --check shared/languages.js
 
       - name: Manifest is valid JSON
         run: node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"
